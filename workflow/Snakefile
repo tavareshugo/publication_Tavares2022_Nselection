@@ -1,0 +1,377 @@
+
+import glob 
+import os
+import re
+import pandas as pd
+
+
+#### Prepare sample information
+
+# sample prefixes can be obtained from the file names
+sample_info = glob.glob("data/raw/reads/*R1.fq.gz")
+
+# get the basename only (without extension)
+sample_info = [os.path.basename(i.replace(".R1.fq.gz", "")) for i in sample_info]
+
+# put into a data frame
+sample_info = pd.DataFrame({'id': sample_info})
+
+# split id column into name and unit (run/lane) identifiers
+sample_info[['names','units']] = sample_info.id.str.split(".",expand=True,)
+
+# window sizes for HARP haplotype frequency estimates
+window_sizes = ["20", "200", "500"]
+
+
+#### RULES ####
+
+rule all:
+  input:
+    #expand("data/intermediate/harp_freq/{name}_chrom{chrom}_{window}kb.freqs", name = sample_info["names"], chrom = [1,2,3,4,5], window = window_sizes)
+    expand("data/intermediate/harp_freq/{name}_chrom{chrom}_{window}kb.freqs", name = ["HN-directional-A", "HN-directional-B_reseq"], chrom = [1,2,3,4,5], window = window_sizes)
+    # expand("data/intermediate/harp_freq/{name}_chrom{chrom}_{window}kb.freqs", name = , chrom = [1,2,3,4,5], window = window_sizes)
+    # "data/external/reference/genome.fa",
+    # "data/intermediate/realigned/LN-stabilising-B.validate.txt",
+    # "data/intermediate/realigned/LN-stabilising-B_reseq.validate.txt",
+    # expand("data/intermediate/harp_like/LN-stabilising-B_chrom{chrom}.hlk", chrom = [1,2,3,4,5]),
+    #expand("data/intermediate/realigned/{name}.validate.txt", name = sample_info["names"])
+
+    # expand("data/intermediate/mapped/{id}.sorted.bam", id = sample_info["id"])
+    # expand("data/intermediate/mapped/{units}.bam", units = units),
+    # expand("data/intermediate/merged/{samples}.bam", samples = sample_info["names"]),
+    # expand("data/intermediate/realigned/{name}.bam", name = sample_info["names"]),
+    # expand("data/intermediate/harp_like/{name}_chrom{chrom}.hlk", name = sample_info["names"], chrom = [1, 2, 3, 4, 5])
+    # expand("data/intermediate/harp/{name}-{window}kb.freq", name = sample_info["names"], window = window_sizes),
+    
+    # this is the final thing we want
+    # expand("data/processed/haplotype_frequencies/poolseq_{window}kb.freq", window = window_sizes)
+    
+
+
+#### get external data
+
+rule getReference:
+  output:
+    # directory("data/external/reference/"),
+    fasta="data/external/reference/genome.fa",
+    indexes=expand("data/external/reference/genome{ext}", ext = [".fa.fai", ".dict"])
+  params:
+    release="46",
+    runtime="00:30:00" # for the HPC scheduler (otherwise can be ignored)
+  log:
+    "logs/getReference/getReference.log"
+  threads: 1
+  conda:
+    "envs/bwa_samtools_picard.yaml"
+  shell:
+    "bash workflow/scripts/getReference.sh {params.release} data/external/reference/ >{log} 2>&1"
+
+
+rule getKnownSnps:
+  output:
+    expand("data/external/snps/founders_chrom{chrom}.dgrp", chrom = [1, 2, 3, 4, 5])
+  params:
+    outdir="data/external/snps/",
+    runtime="01:00:00" # for the HPC scheduler (otherwise can be ignored)
+  log:
+    "logs/getKnownSnps/getKnownSnps.log"
+  threads: 1
+  conda:
+    "envs/getKnownSnps.yaml"
+  shell:
+    "Rscript --vanilla workflow/scripts/getKnownSnps.R --outdir {params.outdir} "
+    ">{log} 2>&1"
+
+
+#### Filter
+
+rule cutadapt:
+  input:
+    ["data/raw/reads/{id}.R1.fq.gz", "data/raw/reads/{id}.R2.fq.gz"]
+  output:
+    fastq1="data/intermediate/trimmed/{id}.R1.fq.gz",
+    fastq2="data/intermediate/trimmed/{id}.R2.fq.gz",
+  params:
+    # https://cutadapt.readthedocs.io/en/stable/guide.html#illumina-truseq
+    adapters = "-a AGATCGGAAGAGCACACGTCTGAACTCCAGTCAC -A AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT",
+    # https://cutadapt.readthedocs.io/en/stable/guide.html#
+    others = "--trim-n --quality-cutoff 20 --minimum-length 50 --max-n 1",
+    runtime="01:00:00" # for the HPC scheduler (otherwise can be ignored)
+  log:
+    "logs/cutadapt/{id}.log"
+  threads: 4
+  conda:
+    "envs/cutadapt.yaml"
+  shell:
+    "cutadapt {params.adapters} {params.others} --cores {threads} -o {output.fastq1} -p {output.fastq2} {input} "
+    ">{log} 2>&1"
+
+
+# rule fastqQC:
+#   input:
+#     directory("logs/cutadapt/")
+#   output:
+#     "data/intermediate/trimmed/cutadapt_multiqc.html"
+#   log:
+#     ""
+#   threads:
+#   conda:
+#   shell:
+#     "multiqc --outdir qc/data/intermediate// --filename {wildcards.id}.multiqc.html data/intermediate/trimmed"
+
+
+#### Mapping
+
+rule bwa:
+  input:
+    reads=["data/intermediate/trimmed/{name}.{unit}.R1.fq.gz", "data/intermediate/trimmed/{name}.{unit}.R2.fq.gz"],
+    ref="data/external/reference/genome.fa"
+  output:
+    temp("data/intermediate/mapped/{name}.{unit}.bam")
+  log:
+    "logs/bwa/{name}.{unit}.log"
+  params:
+    extra = r"-R '@RG\tID:{name}.{unit}\tSM:{name}\tPL:ILLUMINA\tLB:{name}'",
+    runtime = "02:00:00" # for the HPC scheduler (otherwise can be ignored)
+  threads: 4
+  conda:
+    "envs/bwa_samtools_picard.yaml"
+  shell:
+    "(bwa mem -M -t {threads} "
+    "{params.extra} " 
+	  "{input.ref} {input.reads} "
+    " | "
+    "samtools sort -T data/intermediate/mapped/.samtools_{wildcards.name}.{wildcards.unit} "
+    "-o {output} - ) "
+    "2>{log}"
+
+
+#### Merge BAMs
+
+def get_sample_units(wildcards):
+  id = sample_info[sample_info["names"] == wildcards.name]["id"]
+  return expand("data/intermediate/mapped/{id}.bam", id = id)
+
+rule samtools_merge:
+  input:
+    get_sample_units
+  output:
+    temp("data/intermediate/merged/{name}.bam")
+  params:
+    runtime = "00:30:00" # for the HPC scheduler (otherwise can be ignored)
+  log:
+    "logs/samtools_merge/{name}.log"
+  threads: 
+    8     # This value minus 1 will be sent to samtools -@ (see samtools merge doc)
+  conda:
+    "envs/bwa_samtools_picard.yaml"
+  shell:
+    "(samtools merge -@ $(({threads} - 1)) {output} {input}; "
+    "samtools index -@ $(({threads} - 1)) {output}) "
+    ">{log} 2>&1"
+
+
+#### Mark duplicates
+
+def get_bams_for_dedup(wildcards):
+  if "_reseq" in wildcards.name:
+    raise ValueError("This does not need deduplication.")
+  else: 
+    return "data/intermediate/merged/{name}.bam".format(name = wildcards.name)
+
+rule picard_MarkDuplicates:
+  input:
+    get_bams_for_dedup
+  output:
+    bam=temp("data/intermediate/dedup/{name}.bam"),
+    bai="data/intermediate/dedup/{name}.bam.bai",
+    metrics="data/intermediate/dedup/{name}.metrics.txt"
+  log:
+    "logs/picard_dedup/{name}.log"
+  params:
+    runtime = "01:30:00" # for the HPC scheduler (otherwise can be ignored)
+  threads: 4
+  conda:
+    "envs/bwa_samtools_picard.yaml"
+  shell:
+    "(picard MarkDuplicates "
+    "INPUT={input} "
+    "OUTPUT={output.bam} "
+    "METRICS_FILE={output.metrics} " 
+    "REMOVE_DUPLICATES=true; "
+    # "CREATE_INDEX=true "
+    "samtools index {output.bam}) "
+    ">{log} 2>&1"
+
+
+#### Reorder around indels
+
+rule installGATK3:
+  output:
+    "logs/gatk/install.log"
+  params:
+    runtime = "00:10:00" # for the HPC scheduler (otherwise can be ignored)
+  conda:
+    "envs/gatk3.yaml"
+  threads: 1
+  shell:
+    # setup gatk3: https://bioconda.github.io/recipes/gatk/README.html
+    "(wget https://storage.googleapis.com/gatk-software/package-archive/gatk/GenomeAnalysisTK-3.8-1-0-gf15c1c3ef.tar.bz2; "
+    "tar xjf GenomeAnalysisTK-3.8-1-0-gf15c1c3ef.tar.bz2; "
+    "gatk3-register GenomeAnalysisTK-3.8-1-0-gf15c1c3ef/GenomeAnalysisTK.jar; "
+    "rm -r GenomeAnalysisTK-3.8-1-0-gf15c1c3ef GenomeAnalysisTK-3.8-1-0-gf15c1c3ef.tar.bz2) "
+    ">{output} 2>&1"
+
+
+def get_bam_for_realign(wildcards):
+  if "_reseq" in wildcards.name:
+    return "data/intermediate/merged/{name}.bam".format(name = wildcards.name)
+  else:
+    return "data/intermediate/dedup/{name}.bam".format(name = wildcards.name)
+
+rule gatk_RealignerTargetCreator:
+  input:
+    bam = get_bam_for_realign,
+    ref = "data/external/reference/genome.fa",
+    gatk_ok = "logs/gatk/install.log"
+  output:
+    "data/intermediate/realigned/{name}.intervals"
+  log:
+    "logs/gatk/RealignerTargetCreator/{name}.log"
+  params:
+    runtime = "04:00:00" # for the HPC scheduler (otherwise can be ignored)
+  threads: 8
+  conda:
+    "envs/gatk3.yaml"
+  shell:
+    "gatk3 -T RealignerTargetCreator "
+    "-nt {threads} -R {input.ref} "
+    "-o {output} "
+    "-I {input.bam} "
+    ">{log} 2>&1"
+
+rule gatk_IndelRealigner:
+  input:
+    bam = get_bam_for_realign,
+    ref = "data/external/reference/genome.fa",
+    intervals = "data/intermediate/realigned/{name}.intervals"
+  output:
+    temp("data/intermediate/realigned/{name}.bam")
+  log:
+    "logs/gatk/IndelRealigner/{name}.log"
+  params:
+    runtime = "24:00:00" # for the HPC scheduler (otherwise can be ignored)
+  threads: 4
+  conda:
+    "envs/gatk3.yaml"
+  shell:
+    "gatk3 -T IndelRealigner "
+    "-R {input.ref} "
+    "--baq CALCULATE_AS_NECESSARY "
+    "-I {input.bam} "
+    "-o {output} "
+    "-targetIntervals {input.intervals} "
+    "-noTags "
+    ">{log} 2>&1; "
+    "touch {output}.bai" # this is just to ensure the .bai has newer date than .bam
+
+
+rule picard_ValidateSamFile:
+  input:
+    "data/intermediate/realigned/{name}.bam"
+  output:
+    "data/intermediate/realigned/{name}.validate.txt"
+  log:
+    "logs/ValidateSamFile/{name}.log"
+  params:
+    runtime = "01:00:00", # for the HPC scheduler (otherwise can be ignored)
+    ref = "data/external/reference/genome.fa"
+  threads: 4 # even though it's not using multi-threading, this requests enough memory from HPC
+  conda:
+    "envs/bwa_samtools_picard.yaml"
+  shell:
+    "bash workflow/scripts/ValidateSamFile.sh {input} {output} {params.ref} >{log} 2>&1"
+
+
+#### Estimate haplotype frequencies
+
+def get_chrom_region(ref, chrom):
+  # read .fai index file and get things from there
+  chroms = pd.read_csv(ref + ".fai", sep = "\t", header = None)
+  region = "{chrom}:1-{end}".format(chrom = chrom, end = chroms[chroms[0] == str(chrom)][1])
+  return region
+
+
+# https://bitbucket.org/dkessner/harp/src/master/
+rule harp_like:
+  input:
+    bam = "data/intermediate/realigned/{name}.bam",
+    ref = "data/external/reference/genome.fa",
+    snps = "data/external/snps/founders_chrom{chrom}.dgrp"
+  output:
+    temp("data/intermediate/harp_like/{name}_chrom{chrom}.hlk")
+  params:
+    # region = get_chrom_region("data/external/reference/genome.fa", "{chrom}"),
+    runtime = "01:00:00" # for the HPC scheduler (otherwise can be ignored)
+  log:
+    "logs/harp_like/{name}_chrom{chrom}.log"
+  threads: 8
+  conda:
+    "envs/harp.yaml"
+  shell:
+    '''
+    END=$(cat {input.ref}.fai | awk -F'\\t' '$1=={wildcards.chrom}' | cut -f2)
+    harp like \
+      --bam {input.bam} \
+      --refseq {input.ref} \
+      --region "{wildcards.chrom}:1-$END" \
+      --snps {input.snps} \
+      --out logs/harp_like/{wildcards.name}_chrom{wildcards.chrom} \
+      --stem data/intermediate/harp_like/{wildcards.name}_chrom{wildcards.chrom} \
+      >{log} 2>&1
+    '''
+
+
+rule harp_freq:
+  input:
+    hlk="data/intermediate/harp_like/{name}_chrom{chrom}.hlk",
+    ref = "data/external/reference/genome.fa",
+  output:
+    "data/intermediate/harp_freq/{name}_chrom{chrom}_{window}kb.freqs"
+  params:
+    region = get_chrom_region("data/external/reference/genome.fa", "{chrom}"),
+    winsize = lambda wildcards: str(int(int(wildcards.window) * 1000)),
+    winstep = lambda wildcards: str(int(int(wildcards.window) * 1000 / 2)),
+    stem = "data/intermediate/harp_freq/{name}_chrom{chrom}_{window}kb",
+    runtime = "01:00:00" # for the HPC scheduler (otherwise can be ignored)
+  log:
+    "logs/harp_freq/{name}_chrom{chrom}_{window}kb.log"
+  threads: 8
+  conda:
+    "envs/harp.yaml"
+  shell:
+    '''
+    END=$(cat {input.ref}.fai | awk -F'\\t' '$1=={wildcards.chrom}' | cut -f2)
+    echo "Starting harp"
+    harp freq \
+      --hlk {input.hlk} \
+      --region "{wildcards.chrom}:1-$END" \
+      --window_width {params.winsize} \
+      --window_step {params.winstep} \
+      --stem {params.stem} \
+      >{log} 2>&1
+    echo "Finished harp"
+    rm -r {params.stem}.output
+    '''
+
+rule tidyHarp:
+  input:
+    expand("data/intermediate/harp/{name}-{{window}}kb.freq", name = sample_info["names"])
+  output:
+    "data/processed/haplotype_frequencies/poolseq_{window}kb.freq"
+  log:
+    "logs/tidyHarp/poolseq_{window}kb.log"
+  conda:
+    "envs/FIXME"
+  shell:
+    "echo FIXME"
