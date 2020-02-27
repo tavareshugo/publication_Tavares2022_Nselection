@@ -17,8 +17,6 @@ option_list = list(
 
 opt <- parse_args(OptionParser(option_list=option_list))
 
-opt$outdir <- "data/external/snps/"
-
 if(!dir.exists(opt$outdir)){
   dir.create(opt$outdir)
   setwd(opt$outdir)
