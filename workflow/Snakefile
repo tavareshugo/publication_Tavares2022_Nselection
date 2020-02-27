@@ -27,25 +27,12 @@ window_sizes = ["20", "200", "500"]
 
 rule all:
   input:
-    #expand("data/intermediate/harp_freq/{name}_chrom{chrom}_{window}kb.freqs", name = sample_info["names"], chrom = [1,2,3,4,5], window = window_sizes)
-    expand("data/intermediate/harp_freq/{name}_chrom{chrom}_{window}kb.freqs", name = ["HN-directional-A", "HN-directional-B_reseq"], chrom = [1,2,3,4,5], window = window_sizes)
-    # expand("data/intermediate/harp_freq/{name}_chrom{chrom}_{window}kb.freqs", name = , chrom = [1,2,3,4,5], window = window_sizes)
-    # "data/external/reference/genome.fa",
-    # "data/intermediate/realigned/LN-stabilising-B.validate.txt",
-    # "data/intermediate/realigned/LN-stabilising-B_reseq.validate.txt",
-    # expand("data/intermediate/harp_like/LN-stabilising-B_chrom{chrom}.hlk", chrom = [1,2,3,4,5]),
-    #expand("data/intermediate/realigned/{name}.validate.txt", name = sample_info["names"])
+    # This is the final output we want
+    expand("data/processed/poolseq/haplotype_freq_{window}kb.csv", window = window_sizes),
+    expand("data/processed/poolseq/haplotype_diversity_{window}kb.csv", window = window_sizes),
 
-    # expand("data/intermediate/mapped/{id}.sorted.bam", id = sample_info["id"])
-    # expand("data/intermediate/mapped/{units}.bam", units = units),
-    # expand("data/intermediate/merged/{samples}.bam", samples = sample_info["names"]),
-    # expand("data/intermediate/realigned/{name}.bam", name = sample_info["names"]),
-    # expand("data/intermediate/harp_like/{name}_chrom{chrom}.hlk", name = sample_info["names"], chrom = [1, 2, 3, 4, 5])
-    # expand("data/intermediate/harp/{name}-{window}kb.freq", name = sample_info["names"], window = window_sizes),
-    
-    # this is the final thing we want
-    # expand("data/processed/haplotype_frequencies/poolseq_{window}kb.freq", window = window_sizes)
-    
+    # This we need here to define wildcards for previous rules
+    expand("data/intermediate/harp_freq/{name}_chrom{chrom}_{window}kb.freqs", name = ["HN-directional-A", "HN-directional-B_reseq"], chrom = [1,2,3,4,5], window = window_sizes)
 
 
 #### get external data
@@ -71,7 +58,6 @@ rule getKnownSnps:
   output:
     expand("data/external/snps/founders_chrom{chrom}.dgrp", chrom = [1, 2, 3, 4, 5])
   params:
-    outdir="data/external/snps/",
     runtime="01:00:00" # for the HPC scheduler (otherwise can be ignored)
   log:
     "logs/getKnownSnps/getKnownSnps.log"
@@ -79,7 +65,7 @@ rule getKnownSnps:
   conda:
     "envs/getKnownSnps.yaml"
   shell:
-    "Rscript --vanilla workflow/scripts/getKnownSnps.R --outdir {params.outdir} "
+    "Rscript --vanilla workflow/scripts/getKnownSnps.R --outdir data/external/snps/ "
     ">{log} 2>&1"
 
 
@@ -156,7 +142,8 @@ rule samtools_merge:
   input:
     get_sample_units
   output:
-    temp("data/intermediate/merged/{name}.bam")
+    bam=temp("data/intermediate/merged/{name}.bam"),
+    bai=temp("data/intermediate/merged/{name}.bai"),
   params:
     runtime = "00:30:00" # for the HPC scheduler (otherwise can be ignored)
   log:
@@ -166,8 +153,8 @@ rule samtools_merge:
   conda:
     "envs/bwa_samtools_picard.yaml"
   shell:
-    "(samtools merge -@ $(({threads} - 1)) {output} {input}; "
-    "samtools index -@ $(({threads} - 1)) {output}) "
+    "(samtools merge -@ $(({threads} - 1)) {output.bam} {input}; "
+    "samtools index -@ $(({threads} - 1)) {output.bam} {output.bai}) "
     ">{log} 2>&1"
 
 
@@ -184,12 +171,12 @@ rule picard_MarkDuplicates:
     get_bams_for_dedup
   output:
     bam=temp("data/intermediate/dedup/{name}.bam"),
-    bai="data/intermediate/dedup/{name}.bam.bai",
+    bai="data/intermediate/dedup/{name}.bai",
     metrics="data/intermediate/dedup/{name}.metrics.txt"
   log:
     "logs/picard_dedup/{name}.log"
   params:
-    runtime = "01:30:00" # for the HPC scheduler (otherwise can be ignored)
+    runtime = "03:00:00" # for the HPC scheduler (otherwise can be ignored)
   threads: 4
   conda:
     "envs/bwa_samtools_picard.yaml"
@@ -200,7 +187,7 @@ rule picard_MarkDuplicates:
     "METRICS_FILE={output.metrics} " 
     "REMOVE_DUPLICATES=true; "
     # "CREATE_INDEX=true "
-    "samtools index {output.bam}) "
+    "samtools index {output.bam} {output.bai}) "
     ">{log} 2>&1"
 
 
@@ -256,7 +243,8 @@ rule gatk_IndelRealigner:
     ref = "data/external/reference/genome.fa",
     intervals = "data/intermediate/realigned/{name}.intervals"
   output:
-    temp("data/intermediate/realigned/{name}.bam")
+    bam=temp("data/intermediate/realigned/{name}.bam"),
+    bai=temp("data/intermediate/realigned/{name}.bai")
   log:
     "logs/gatk/IndelRealigner/{name}.log"
   params:
@@ -269,11 +257,11 @@ rule gatk_IndelRealigner:
     "-R {input.ref} "
     "--baq CALCULATE_AS_NECESSARY "
     "-I {input.bam} "
-    "-o {output} "
+    "-o {output.bam} "
     "-targetIntervals {input.intervals} "
     "-noTags "
     ">{log} 2>&1; "
-    "touch {output}.bai" # this is just to ensure the .bai has newer date than .bam
+    "touch {output.bai}" # this is just to ensure the .bai has newer date than .bam
 
 
 rule picard_ValidateSamFile:
@@ -295,23 +283,17 @@ rule picard_ValidateSamFile:
 
 #### Estimate haplotype frequencies
 
-def get_chrom_region(ref, chrom):
-  # read .fai index file and get things from there
-  chroms = pd.read_csv(ref + ".fai", sep = "\t", header = None)
-  region = "{chrom}:1-{end}".format(chrom = chrom, end = chroms[chroms[0] == str(chrom)][1])
-  return region
-
 
 # https://bitbucket.org/dkessner/harp/src/master/
 rule harp_like:
   input:
     bam = "data/intermediate/realigned/{name}.bam",
+    bai = "data/intermediate/realigned/{name}.bai",
     ref = "data/external/reference/genome.fa",
     snps = "data/external/snps/founders_chrom{chrom}.dgrp"
   output:
     temp("data/intermediate/harp_like/{name}_chrom{chrom}.hlk")
   params:
-    # region = get_chrom_region("data/external/reference/genome.fa", "{chrom}"),
     runtime = "01:00:00" # for the HPC scheduler (otherwise can be ignored)
   log:
     "logs/harp_like/{name}_chrom{chrom}.log"
@@ -339,7 +321,6 @@ rule harp_freq:
   output:
     "data/intermediate/harp_freq/{name}_chrom{chrom}_{window}kb.freqs"
   params:
-    region = get_chrom_region("data/external/reference/genome.fa", "{chrom}"),
     winsize = lambda wildcards: str(int(int(wildcards.window) * 1000)),
     winstep = lambda wildcards: str(int(int(wildcards.window) * 1000 / 2)),
     stem = "data/intermediate/harp_freq/{name}_chrom{chrom}_{window}kb",
@@ -364,14 +345,25 @@ rule harp_freq:
     rm -r {params.stem}.output
     '''
 
-rule tidyHarp:
+rule compilePoolseqFreqs:
   input:
-    expand("data/intermediate/harp/{name}-{{window}}kb.freq", name = sample_info["names"])
+    "data/intermediate/harp_freq/"
+    #expand("data/intermediate/harp_freq/{name}_chrom{chrom}_{{window}}kb.freqs", name = sample_info["name"], chrom = [1, 2, 3, 4, 5])
   output:
-    "data/processed/haplotype_frequencies/poolseq_{window}kb.freq"
+    "data/processed/poolseq/haplotype_freq_{window}kb.csv",
+    "data/processed/poolseq/haplotype_diversity_{window}kb.csv"
+  params:
+    runtime = "01:00:00" # for the HPC scheduler (otherwise can be ignored)
   log:
-    "logs/tidyHarp/poolseq_{window}kb.log"
+    "logs/compilePoolseqFreqs/window{window}kb.log"
+  threads: 1
   conda:
-    "envs/FIXME"
+    "envs/getKnownSnps.yaml"
   shell:
-    "echo FIXME"
+    '''
+    Rscript --vanilla workflow/scripts/compilePoolseqFreqs.R \
+      --indir data/intermediate/harp_freq/ \
+      --outdir data/processed/poolseq/ \
+      --window {wildcards.window} \
+      >{log} 2>&1
+    '''
