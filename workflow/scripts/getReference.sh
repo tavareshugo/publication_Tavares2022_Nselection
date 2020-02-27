@@ -38,3 +38,13 @@ echo "Indexing with bwa"
 bwa index genome.fa
 
 
+#### Centromere annotation ####
+
+# Centromere region is annotated in TAIR9 release
+# see https://www.biostars.org/p/18782/
+wget -O temp_centromeres.txt ftp://ftp.arabidopsis.org/home/tair/Genes/TAIR9_genome_release/TAIR9_gff3/Assembly_GFF/TAIR9_GFF3_assemblies.gff
+
+# extract centromere annotations
+printf "chrom\tstart\tend\n" > centromeres.tsv
+grep "CEN" temp_centromeres.txt | cut -f 1,4,5 >> centromeres.tsv
+rm temp_centromeres.txt
