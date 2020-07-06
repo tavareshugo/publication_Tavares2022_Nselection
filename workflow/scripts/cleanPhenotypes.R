@@ -12,7 +12,7 @@ library(tidyverse)
 
 # need `pedigree` package, not available through conda
 if(!("pedigree" %in% installed.packages())){
-  install.packages("pedigree")
+  install.packages("pedigree", repos = "http://cran.us.r-project.org")
 }
 
 # not loading the whole package due to conflicting functions

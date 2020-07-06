@@ -32,7 +32,7 @@ rule all:
     expand("data/processed/poolseq/haplotype_diversity_{window}kb.csv", window = window_sizes),
 
     # This we need here to define wildcards for previous rules
-    expand("data/intermediate/harp_freq/{name}_chrom{chrom}_{window}kb.freqs", name = sample_info["names"], chrom = [1,2,3,4,5], window = window_sizes)
+    expand("data/intermediate/harp_freq/{name}_chrom{chrom}_{window}kb.freqs", name = sample_info["names"], chrom = [1,2,3,4,5], window = window_sizes),
 
     # this is the processed phenotype data
     expand("data/processed/phenotypes/{file}.rds", file = ["phenotypes_individual", "phenotypes_summarised", "phenotypes_response", "variance_tests", "generation10_plasticity"])
