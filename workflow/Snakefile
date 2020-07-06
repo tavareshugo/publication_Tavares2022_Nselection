@@ -1,5 +1,5 @@
 
-import glob 
+import glob
 import os
 import re
 import pandas as pd
@@ -33,6 +33,27 @@ rule all:
 
     # This we need here to define wildcards for previous rules
     expand("data/intermediate/harp_freq/{name}_chrom{chrom}_{window}kb.freqs", name = sample_info["names"], chrom = [1,2,3,4,5], window = window_sizes)
+
+    # this is the processed phenotype data
+    expand("data/processed/phenotypes/{file}.rds", file = ["phenotypes_individual", "phenotypes_summarised", "phenotypes_response", "variance_tests", "generation10_plasticity"])
+
+
+#### process phenotype data
+
+rule cleanPhenotypes:
+  input:
+    "data/raw/phenotypes/compiled_phenotypes_data_clean.csv"
+  output:
+    expand("data/processed/phenotypes/{file}.rds", file = ["phenotypes_individual", "phenotypes_summarised", "phenotypes_response", "variance_tests", "generation10_plasticity"])
+  params:
+    runtime="01:00:00" # for the HPC scheduler (otherwise can be ignored)
+  log:
+    "logs/cleanPhenotypes/cleanPhenotypes.log"
+  threads: 1
+  conda:
+    "envs/R.yaml"
+  shell:
+    "Rscript --vanilla workflow/scripts/cleanPhenotypes.R"
 
 
 #### get external data
@@ -124,7 +145,7 @@ rule bwa:
     "envs/bwa_samtools_picard.yaml"
   shell:
     "(bwa mem -M -t {threads} "
-    "{params.extra} " 
+    "{params.extra} "
 	  "{input.ref} {input.reads} "
     " | "
     "samtools sort -T data/intermediate/mapped/.samtools_{wildcards.name}.{wildcards.unit} "
@@ -148,7 +169,7 @@ rule samtools_merge:
     runtime = "01:00:00" # for the HPC scheduler (otherwise can be ignored)
   log:
     "logs/samtools_merge/{name}.log"
-  threads: 
+  threads:
     8     # This value minus 1 will be sent to samtools -@ (see samtools merge doc)
   conda:
     "envs/bwa_samtools_picard.yaml"
@@ -163,7 +184,7 @@ rule samtools_merge:
 def get_bams_for_dedup(wildcards):
   if "_reseq" in wildcards.name:
     raise ValueError("This does not need deduplication.")
-  else: 
+  else:
     return "data/intermediate/merged/{name}.bam".format(name = wildcards.name)
 
 rule picard_MarkDuplicates:
@@ -184,7 +205,7 @@ rule picard_MarkDuplicates:
     "(picard MarkDuplicates "
     "INPUT={input} "
     "OUTPUT={output.bam} "
-    "METRICS_FILE={output.metrics} " 
+    "METRICS_FILE={output.metrics} "
     "REMOVE_DUPLICATES=true; "
     # "CREATE_INDEX=true "
     "samtools index {output.bam} {output.bai}) "
