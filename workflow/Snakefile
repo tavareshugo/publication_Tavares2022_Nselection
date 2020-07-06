@@ -32,7 +32,7 @@ rule all:
     expand("data/processed/poolseq/haplotype_diversity_{window}kb.csv", window = window_sizes),
 
     # This we need here to define wildcards for previous rules
-    expand("data/intermediate/harp_freq/{name}_chrom{chrom}_{window}kb.freqs", name = ["HN-directional-A", "HN-directional-B_reseq"], chrom = [1,2,3,4,5], window = window_sizes)
+    expand("data/intermediate/harp_freq/{name}_chrom{chrom}_{window}kb.freqs", name = sample_info["names"], chrom = [1,2,3,4,5], window = window_sizes)
 
 
 #### get external data
@@ -143,9 +143,9 @@ rule samtools_merge:
     get_sample_units
   output:
     bam=temp("data/intermediate/merged/{name}.bam"),
-    bai=temp("data/intermediate/merged/{name}.bai"),
+    bai="data/intermediate/merged/{name}.bai",
   params:
-    runtime = "00:30:00" # for the HPC scheduler (otherwise can be ignored)
+    runtime = "01:00:00" # for the HPC scheduler (otherwise can be ignored)
   log:
     "logs/samtools_merge/{name}.log"
   threads: 
