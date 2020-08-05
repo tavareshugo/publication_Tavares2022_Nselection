@@ -29,14 +29,14 @@ magics <- ped %>%
   pivot_longer(cols = c(mother, father), names_to = "parent", values_to = "id")
 
 # get public names to match with HSRIL names
-if(!file.exists("data/external/founder_snps/magic_public_ids.xls")){
+if(!file.exists("data/external/founder_genotypes/magic_public_ids.xls")){
   download.file("https://www.genetics.org/lookup/suppl/doi:10.1534/genetics.114.170746/-/DC1/genetics.114.170746-3.xls",
-                "data/external/founder_snps/magic_public_ids.xls")
+                "data/external/founder_genotypes/magic_public_ids.xls")
 }
 
 # even though the file extension is ".xls" I had to use read_xlsx function
 # see https://github.com/tidyverse/readxl/issues/598
-magics <- read_xlsx("./data/external/founder_snps/magic_public_ids.xls",
+magics <- read_xlsx("./data/external/founder_genotypes/magic_public_ids.xls",
            sheet = "seed area", range = "H1:I824") %>%
   # tidy names up
   rename_with(~ str_to_lower(str_replace(., " ", "_"))) %>%
@@ -48,12 +48,12 @@ magics <- read_xlsx("./data/external/founder_snps/magic_public_ids.xls",
 # Get MAGIC line mosaics ----
 #
 # Get file From Imprialou et al 2017 (https://doi.org/10.1534/genetics.116.192823)
-if(!file.exists("./data/external/founder_snps/mosaic.txt")){
+if(!file.exists("./data/external/founder_genotypes/mosaic.txt")){
   download.file("http://www.genetics.org/highwire/filestream/436302/field_highwire_adjunct_files/5/TableS2.txt",
-                destfile = "./data/external/founder_snps/mosaic.txt")
+                destfile = "./data/external/founder_genotypes/mosaic.txt")
 }
 
-mosaic <- read_table2("./data/external/founder_snps/mosaic.txt")
+mosaic <- read_table2("./data/external/founder_genotypes/mosaic.txt")
 
 # Tidy the mosaic table
 mosaic <- mosaic %>%
@@ -93,11 +93,11 @@ mosaic_filtered <- bed_intersect(mosaic, mosaic_intervals) %>%
 
 # save tidy mosaic table
 write_csv(mosaic_filtered,
-          "data/external/founder_snps/magic_mosaics.csv")
+          "data/external/founder_genotypes/magic_mosaics.csv")
 
 # remove unnecessary files
-unlink("data/external/founder_snps/magic_public_ids.xls")
-unlink("data/external/founder_snps/mosaic.txt")
+unlink("data/external/founder_genotypes/magic_public_ids.xls")
+unlink("data/external/founder_genotypes/mosaic.txt")
 
 
 # Checks ------------------------------------------------------------------

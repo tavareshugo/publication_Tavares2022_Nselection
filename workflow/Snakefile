@@ -74,19 +74,36 @@ rule getReference:
   shell:
     "bash workflow/scripts/getReference.sh {params.release} data/external/reference/ >{log} 2>&1"
 
-
-rule getKnownSnps:
+# this fetches accession SNPs necessary for HARP
+rule getAccessionGenotypes:
   output:
-    expand("data/external/snps/founders_chrom{chrom}.dgrp", chrom = [1, 2, 3, 4, 5])
+    expand("data/external/founder_genotypes/accessions_chrom{chrom}.dgrp", chrom = [1, 2, 3, 4, 5])
   params:
     runtime="01:00:00" # for the HPC scheduler (otherwise can be ignored)
   log:
-    "logs/getKnownSnps/getKnownSnps.log"
+    "logs/getAccessionGenotypes/getAccessionGenotypes.log"
+  threads: 1
+  conda:
+    "envs/getAccessionGenotypes.yaml"
+  shell:
+    "Rscript --vanilla workflow/scripts/data_processing_founders/getAccessionGenotypes.R --outdir data/external/founder_genotypes "
+    ">{log} 2>&1"
+
+# this fetches MAGIC mosaics for estimating the starting population statistics
+rule getMagicMosaics:
+  input:
+    "data/raw/phenotypes/compiled_phenotypes_data_clean.csv"
+  output:
+    "data/external/founder_genotypes/magic_mosaics.csv"
+  params:
+    runtime="01:00:00" # for the HPC scheduler (otherwise can be ignored)
+  log:
+    "logs/getMagicMosaics/getMagicMosaics.log"
   threads: 1
   conda:
     "envs/getKnownSnps.yaml"
   shell:
-    "Rscript --vanilla workflow/scripts/getKnownSnps.R --outdir data/external/snps/ "
+    "Rscript --vanilla workflow/scripts/data_processing_founders/getMagicMosaics.R"
     ">{log} 2>&1"
 
 
