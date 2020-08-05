@@ -35,7 +35,7 @@ rule all:
     expand("data/intermediate/harp_freq/{name}_chrom{chrom}_{window}kb.freqs", name = sample_info["names"], chrom = [1,2,3,4,5], window = window_sizes),
 
     # this is the processed phenotype data
-    expand("data/processed/phenotypes/{file}.rds", file = ["phenotypes_individual", "phenotypes_summarised", "phenotypes_response", "variance_tests", "generation10_plasticity"])
+    expand("data/processed/phenotypes/{file}.rds", file = ["phenotypes_individual", "phenotypes_summarised", "phenotypes_response", "variance_tests", "generation10_plasticity"]),
 
     # this is the founder MAGICs genotype data
     "data/external/founder_genotypes/magic_mosaics.csv"
