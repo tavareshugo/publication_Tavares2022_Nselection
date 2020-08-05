@@ -13,7 +13,7 @@ option_list = list(
               default = NA,
               type = 'character',
               help = "The directory to store output files.")
-  )
+)
 
 opt <- parse_args(OptionParser(option_list=option_list))
 
@@ -25,22 +25,20 @@ if(!dir.exists(opt$outdir)){
 }
 
 
-
 #
 # Read and tidy founder genotypes ----
 #
-## Download founder genotype data
-## Read it and filter/tidy it
 
-# Get data for each chromosome
+# Link to server
+server <- "http://mtweb.cs.ucl.ac.uk/mus/www/19genomes/variants.tables/"
+
+# Download data for each chromosome
 founder_genotypes <- map(1:5, function(i){
+  # Name of the chromosome file
+  chrom_file <- paste0("chr", i, ".alleles.txt")
 
-  # server file
-  remote_file <- paste0("http://mtweb.cs.ucl.ac.uk/mus/www/19genomes/variants.tables/chr", i, ".alleles.txt")
-
-  # Read the file
-  message("Downloading: ", remote_file)
-  chrom_data <- read_table2(remote_file,
+  # Read the file - directly from web, takes a while
+  chrom_data <- read_table2(file.path(server, chrom_file),
                             col_types = cols(.default = col_character(),
                                              pse.bp = col_integer(),
                                              bp = col_double(),
@@ -51,8 +49,8 @@ founder_genotypes <- map(1:5, function(i){
   chrom_data <- chrom_data %>%
     # Rename some columns
     rename(chrom = chr, start = bp, major_allele_count = maf) %>%
-    rename_all(funs(str_replace(., "-.*", ""))) %>%
-    # add end position
+    rename_all(list(~ str_replace(., "-.*", ""))) %>%
+    # add end position - useful for finding overlaps later
     mutate(start = as.integer(start), end = start,
            ref = col, snp = paste(chrom, start, sep = "_")) %>%
     # filter all genotypes to retain only simple SNPs
@@ -67,9 +65,9 @@ founder_genotypes <- map(1:5, function(i){
   # Write dgrp formatted tables (for HARP software)
   chrom_data %>%
     select(start, ref, bur:zu) %>%
-    rename_at(vars(start), funs(deparse(as.numeric(i)))) %>%
+    rename_at(vars(start), funs(deparse(i))) %>%
     rename(Ref = ref) %>%
-    write_csv(paste0("founders_chrom", i, ".dgrp"))
+    write_csv(paste0("accessions_chrom", i, ".dgrp"))
 
   # Return data in long format
   chrom_data %>%
@@ -82,7 +80,7 @@ founder_genotypes <- bind_rows(founder_genotypes) %>%
 
 
 #
-# Export SNPs ----
+# Get diagnostic SNPs ----
 #
 # Classify SNPs as diagnostic
 founder_genotypes <- founder_genotypes %>%
@@ -95,15 +93,21 @@ diag_snps <- founder_genotypes %>%
   filter(!is.na(diag_accession)) %>%
   select(snp, ref, snp_allele, diag_accession)
 
-# Write a list of founder SNP alleles including diagnostic accession if there is one
+
+#
+# Write tables ----
+#
+
+# List of founder SNP alleles including diagnostic accession if there is one
 founder_genotypes %>%
   distinct(snp, chrom, start, end, ref, snp_allele) %>%
   filter(ref != snp_allele) %>%
   left_join(diag_snps) %>%
   rename(alt = snp_allele) %>%
-  write_tsv("founders_snps.tsv")
+  write_csv("accessions_snps.csv")
 
 # Write the genotypes themselves in tabular format
 founder_genotypes %>%
-  write_tsv("founders_genotypes.tsv")
+  write_csv("accessions_genotypes.csv")
+
 
