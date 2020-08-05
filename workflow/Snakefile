@@ -37,6 +37,9 @@ rule all:
     # this is the processed phenotype data
     expand("data/processed/phenotypes/{file}.rds", file = ["phenotypes_individual", "phenotypes_summarised", "phenotypes_response", "variance_tests", "generation10_plasticity"])
 
+    # this is the founder MAGICs genotype data
+    "data/external/founder_genotypes/magic_mosaics.csv"
+    
 
 #### process phenotype data
 
@@ -328,7 +331,7 @@ rule harp_like:
     bam = "data/intermediate/realigned/{name}.bam",
     bai = "data/intermediate/realigned/{name}.bai",
     ref = "data/external/reference/genome.fa",
-    snps = "data/external/snps/founders_chrom{chrom}.dgrp"
+    snps = "data/external/founder_genotypes/accessions_chrom{chrom}.dgrp"
   output:
     temp("data/intermediate/harp_like/{name}_chrom{chrom}.hlk")
   params:
