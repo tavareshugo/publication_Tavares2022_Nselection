@@ -28,49 +28,18 @@ parser.add_argument("--loc_selected_loci", help="Manually specify the location o
 parser.add_argument("--selected_effect", help="Effect of selected alleles",
                     default = 0.5)
 parser.add_argument("--n_adv_alleles", help="Number of advantageous alleles",
-                    default = 1)
+                    type = int, default = 1)
+parser.add_argument("--outdir", help="Output directory",
+                    default = ".")
+parser.add_argument("--seed", help="Seed number for random number generator. Negative values will pick a random seed.",
+                    type = int, default = -1)
 args = parser.parse_args()
 
 
-
-#### Population parameters ####
-
-# parse number of loci per chromosome
-loci_per_chrom = [int(i) for i in args.chrom_loci.split(",")]
-
-# chromosome names
-chrom_names = ["Chr" + str(i+1) for i in range(len(loci_per_chrom))]
-
-# make names for each locus (easier to export data)
-loci_names = []
-for i in zip(chrom_names, loci_per_chrom):
-    for j in range(i[1]):
-        loci_names.append(i[0] + "-" + str(j + 1))
-
-# advantageous loci
-if args.loc_selected_loci is not None:
-    adv_loci = [int(i) for i in args.loc_selected_loci.split(",")]
-elif args.place_selected_loci == "random":
-    adv_loci = [random.randint(0, len(loci_names)) for x in range(args.n_selected_loci)]
-elif args.place_selected_loci == "equal":
-    adv_loci_per_chrom = [len(x) for x in np.array_split(range(args.n_selected_loci), 5)]
-    
-    adv_loci = []    
-    for i in range(len(loci_per_chrom)):
-        if adv_loci_per_chrom[i] == 0:
-            next
-        else:
-            if i != 0:
-                offset = sum(loci_per_chrom[:i])
-            else:
-                offset = 0
-            for j in range(adv_loci_per_chrom[i]):
-                adv_loci.append(offset + int(loci_per_chrom[i]/(adv_loci_per_chrom[i]+1)*(j+1)))
-    #adv_loci = [int(i) for i in np.round(np.linspace(250, len(loci_names)-250, args.n_selected_loci))]
-else:
-    raise Exception("Argument --place_selected_loci has to be 'random' or 'equal'")
-
-adv_loci.sort()
+# set the seeds
+if args.seed >= 0:
+    sim.setOptions(seed = args.seed)
+    random.seed(a = args.seed)
 
 
 #### Helper functions ####
@@ -179,12 +148,49 @@ def assignFitness(pop):
 
 
 
-#### evolve population ####
-# quantitative trait, linkage, selection
+#### Initialise population ####
+
+# parse number of loci per chromosome
+loci_per_chrom = [int(i) for i in args.chrom_loci.split(",")]
+
+# chromosome names
+chrom_names = ["Chr" + str(i+1) for i in range(len(loci_per_chrom))]
+
+# make names for each locus (easier to export data)
+loci_names = []
+for i in zip(chrom_names, loci_per_chrom):
+    for j in range(i[1]):
+        loci_names.append(i[0] + "-" + str(j + 1))
+
+# advantageous loci
+if args.loc_selected_loci is not None:
+    adv_loci = [int(i) for i in args.loc_selected_loci.split(",")]
+elif args.place_selected_loci == "random":
+    adv_loci = [random.randint(0, len(loci_names)) for x in range(args.n_selected_loci)]
+elif args.place_selected_loci == "equal":
+    adv_loci_per_chrom = [len(x) for x in np.array_split(range(args.n_selected_loci), 5)]
+    
+    adv_loci = []
+    for i in range(len(loci_per_chrom)):
+        if adv_loci_per_chrom[i] == 0:
+            next
+        else:
+            if i != 0:
+                offset = sum(loci_per_chrom[:i])
+            else:
+                offset = 0
+            for j in range(adv_loci_per_chrom[i]):
+                adv_loci.append(offset + int(loci_per_chrom[i]/(adv_loci_per_chrom[i]+1)*(j+1)))
+    #adv_loci = [int(i) for i in np.round(np.linspace(250, len(loci_names)-250, args.n_selected_loci))]
+else:
+    raise Exception("Argument --place_selected_loci has to be 'random' or 'equal'")
+
+adv_loci.sort()
+
 
 # initialise population
 pop = sim.Population(
-    size = [200, 200, 200],#args.pop_size,                       # number of individuals
+    size = [200, 200, 200], # number of individuals
     subPopNames = ["random", "directional", "stabilising"],
     loci = loci_per_chrom,  # number of loci per chromosome
     chromNames = chrom_names,
@@ -192,6 +198,9 @@ pop = sim.Population(
     infoFields = ['ind_id', 'father_id', 'mother_id', 'trait', 'nalleles', 'rank', 'fitness'],  # all the fields we will use
     ancGen = -1,                                 # record information for all generations
     )
+
+
+#### evolve population ####
 
 # evolve population
 pop.evolve(
@@ -229,11 +238,11 @@ pop.evolve(
 )
 
 
-#### save pedigree ####
+#### save results ####
 
-def write_pedigree(pop):
+def write_pedigree(pop, outfile):
     
-    out = open("pedigree.csv", "w")
+    out = open(outfile, "w")
     
     # get info field names
     info_names = pop.infoFields()
@@ -263,16 +272,25 @@ def write_pedigree(pop):
                 out.write(selection + "," + str(gen) + "," + vals + "\n")
 
 
-# save pedigree
-write_pedigree(pop)
+def expected_heterozygosity(freq, pool_alleles):
+    if pool_alleles >= len(freq):
+        return 0
+    else:
+        # sort frequencies
+        freq.sort(reverse = True)
+        
+        # get alleles to pool together
+        freq1 <- sum(freq[:pool_alleles])
+        freq2 <- freq[-(:pool_alleles)]
+        
+        # expected heterozygosity
+        het <- 1 - freq1*freq1 + sum([x*x for x in freq2])
+        return het
 
 
-
-#### save heterozygosity ####
-
-def write_heterozygosity(pop):
+def write_heterozygosity(pop, outfile):
     
-    out = open("heterozygosity.csv", "w")
+    out = open(outfile, "w")
     out.write("selection,gen,locus,het,selected\n")
     
     # iterate generations: they are from last to first, so using a decreasing range
@@ -304,16 +322,63 @@ def write_heterozygosity(pop):
                                                          d = het,
                                                          e = locus in adv_loci))
 
+def write_frequency(pop, outfile):
+    
+    out = open(outfile, "w")
+    out.write("selection,generation,locus,freq,selected\n")
+    
+    # iterate generations: they are from last to first, so using a decreasing range
+    for i in range(pop.ancestralGens()-1, -1, -1):
+        # activate this generation
+        pop.useAncestralGen(i)
+        
+        # calculate allele frequencies
+        # note: the vars option needs to be added so frequences are calculated for each sub-population
+        # http://simupop.sourceforge.net/manual_svn/build/userGuide_ch5_sec11.html#defdicttype
+        sim.stat(pop, alleleFreq = range(np.sum(pop.numLoci())), vars=['alleleFreq_sp'])
+        #sim.stat(pop, alleleFreq = range(np.sum(pop.numLoci())))
 
-# save heterozygosity statistics
-write_heterozygosity(pop)
+        # loop through populations
+        for selection in pop.subPopNames():
+            # get sub-population index
+            subpop_idx = pop.subPopByName(selection)
+            
+            # loop through each locus
+            for locus in range(np.sum(pop.numLoci())):
+                # fetch allele frequency from this sub-population and calculate heterozygosity
+                # http://simupop.sourceforge.net/manual_svn/build/userGuide_ch5_sec11.html#defdicttype
+                for freq in pop.dvars(subpop_idx).alleleFreq[locus].values():
+                    # write
+                    out.write("{a},{b},{c},{d},{e}\n".format(a = selection,
+                                                             b = pop.ancestralGens()-i-1,
+                                                             c = pop.locusName(locus),
+                                                             d = freq,
+                                                             e = locus in adv_loci))
 
 
+file_suffix = "{a}-{b}-{c}-seed{d}".format(a = args.n_selected_loci,
+                                               b = args.selected_effect,
+                                               c = args.n_adv_alleles,
+                                               d = "random" if args.seed < 0 else args.seed)
+# save pedigree
+write_pedigree(pop, 
+               "{outdir}/pedigree_{suffix}.csv".format(outdir = args.outdir,
+                                                       suffix = file_suffix))
+
+# save allele frequency
+write_frequency(pop,
+                "{outdir}/freq_{suffix}.csv".format(outdir = args.outdir,
+                                                    suffix = file_suffix))
 
 
-
-
-
+# =============================================================================
+# # save heterozygosity statistics
+# write_heterozygosity(pop,
+#                      "het_{a}-{b}-{c}.csv".format(a = args.n_selected_loci,
+#                                                  b = args.selected_effect,
+#                                                  c = args.n_adv_alleles))
+# 
+# =============================================================================
 
 
 
