@@ -280,18 +280,17 @@ def expected_heterozygosity(freq, pool_alleles):
         freq.sort(reverse = True)
         
         # get alleles to pool together
-        freq1 <- sum(freq[:pool_alleles])
-        freq2 <- freq[-(:pool_alleles)]
+        freq1 = sum(freq[:pool_alleles])
+        freq2 = freq[pool_alleles:]
         
         # expected heterozygosity
-        het <- 1 - freq1*freq1 + sum([x*x for x in freq2])
+        het = 1 - (freq1*freq1 + sum([x*x for x in freq2]))
         return het
-
 
 def write_heterozygosity(pop, outfile):
     
     out = open(outfile, "w")
-    out.write("selection,gen,locus,het,selected\n")
+    out.write("selection,gen,locus,selected,het,het2,het3,het4,het5,het6,het7,het8\n")
     
     # iterate generations: they are from last to first, so using a decreasing range
     for i in range(pop.ancestralGens()-1, -1, -1):
@@ -313,14 +312,23 @@ def write_heterozygosity(pop, outfile):
             for locus in range(np.sum(pop.numLoci())):
                 # fetch allele frequency from this sub-population and calculate heterozygosity
                 # http://simupop.sourceforge.net/manual_svn/build/userGuide_ch5_sec11.html#defdicttype
-                het = 1 - sum([x*x for x in pop.dvars(subpop_idx).alleleFreq[locus].values()])
+                #het = expected_heterozygosity(pop.dvars(subpop_idx).alleleFreq[locus].values())
                 
-                # write
-                out.write("{a},{b},{c},{d},{e}\n".format(a = selection,
-                                                         b = pop.ancestralGens()-i-1,
-                                                         c = pop.locusName(locus),
-                                                         d = het,
-                                                         e = locus in adv_loci))
+                # write all but heterozygosity
+                out.write("{a},{b},{c},{d},".format(a = selection,
+                                                   b = pop.ancestralGens()-i-1,
+                                                   c = pop.locusName(locus),
+                                                   d = locus in adv_loci))
+                
+                # write heterozygosity
+                for pool_alleles in range(1, 9):
+                    freqs = list(pop.dvars(subpop_idx).alleleFreq[locus].values())
+                    het = expected_heterozygosity(freqs, pool_alleles)
+                    out.write("{},".format(het))
+                
+                # add newline
+                out.write("\n")
+                
 
 def write_frequency(pop, outfile):
     
@@ -369,6 +377,10 @@ write_pedigree(pop,
 write_frequency(pop,
                 "{outdir}/freq_{suffix}.csv".format(outdir = args.outdir,
                                                     suffix = file_suffix))
+
+write_heterozygosity(pop,
+                     "{outdir}/het_{suffix}.csv".format(outdir = args.outdir,
+                                                        suffix = file_suffix))
 
 
 # =============================================================================
