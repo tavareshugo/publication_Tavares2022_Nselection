@@ -27,18 +27,27 @@ window_sizes = ["20", "200", "500"]
 
 rule all:
   input:
-    # This is the final output we want
+    # This we need to define wildcards for previous rules
+    expand("data/intermediate/harp_freq/{name}_chrom{chrom}_{window}kb.freqs", name = sample_info["names"], chrom = [1,2,3,4,5], window = window_sizes),
+
+    # poolseq frequencies
     expand("data/processed/poolseq/haplotype_freq_{window}kb.csv", window = window_sizes),
     expand("data/processed/poolseq/haplotype_diversity_{window}kb.csv", window = window_sizes),
 
-    # This we need here to define wildcards for previous rules
-    expand("data/intermediate/harp_freq/{name}_chrom{chrom}_{window}kb.freqs", name = sample_info["names"], chrom = [1,2,3,4,5], window = window_sizes),
-
-    # this is the processed phenotype data
+    # processed phenotype data
     expand("data/processed/phenotypes/{file}.rds", file = ["phenotypes_individual", "phenotypes_summarised", "phenotypes_response", "variance_tests", "generation10_plasticity"]),
 
-    # this is the founder MAGICs genotype data
-    "data/external/founder_genotypes/magic_mosaics.csv"
+    # founder MAGICs genotype data
+    "data/external/founder_genotypes/magic_mosaics.csv",
+
+    # simulations
+    "data/processed/simulations/het_all_loci.csv",
+    "data/processed/simulations/het_summarised.csv",
+    "data/processed/simulations/het_selected_loci.csv",
+    "data/processed/simulations/trait_summarised.csv",
+    "data/processed/simulations/trait_responses.csv",
+    "data/processed/simulations/trait_heritabilities.csv"
+
     
 
 #### process phenotype data
@@ -407,4 +416,60 @@ rule compilePoolseqFreqs:
       --outdir data/processed/poolseq/ \
       --window {wildcards.window} \
       >{log} 2>&1
+    '''
+
+
+# #### Run simulations
+
+# rule simulations:
+#   input:
+#     sim_params="data/intermediate/simulations/parameter_list.csv"
+#   output:
+#     "data/intermediate/simulations/pedigree_{nloci}-{effect}-{nalleles}-{seed}.csv"
+#   params:
+#     runtime = "02:00:00"
+#   log:
+#     "logs/simulations.log"
+#   threads: 1
+#   conda:
+#     "envs/simupop.yaml"
+#   shell:
+#     '''
+    # for i in {1..100}
+    # do
+    #   python workflow/scripts/simulations/single_replicate_simulation.py --n_selected_loci {wildcards.nloci} --selected_effect {wildcards.effect} --n_adv_alleles {wildcards.nalleles} --outdir data/intermediate/simulations --seed "20200916$i"
+    # done
+#     '''
+
+# compile simulations
+# TODO fix the input for these (I quickly ran it this way "manually")
+rule compileSimulations:
+  input:
+    expand("data/intermediate/simulations/pedigree_{nloci}-{effect}-{nalleles}-{seed}.csv",
+           nloci = [1, 3, 5, 8, 10, 20],
+           effect = [0.1, 0.3, 0.5, 0.7, 1],
+           nalleles = [1, 3, 6, 8],
+           seed = range(1, 101)),
+    expand("data/intermediate/simulations/het_{nloci}-{effect}-{nalleles}-{seed}.csv",
+           nloci = [1, 3, 5, 8, 10, 20],
+           effect = [0.1, 0.3, 0.5, 0.7, 1],
+           nalleles = [1, 3, 6, 8],
+           seed = range(1, 101))
+  output:
+    "data/processed/simulations/het_all_loci.csv",
+    "data/processed/simulations/het_summarised.csv",
+    "data/processed/simulations/het_selected_loci.csv",
+    "data/processed/simulations/trait_summarised.csv",
+    "data/processed/simulations/trait_responses.csv",
+    "data/processed/simulations/trait_heritabilities.csv"
+  params:
+    runtime = "05:00:00" # for the HPC scheduler (otherwise can be ignored)
+  log:
+    "logs/simulations/compileSimulations.log"
+  threads: 1
+  conda:
+    "envs/tidyverse.yaml"
+  shell:
+    '''
+    Rscript --vanilla workflow/scripts/simulations/compileSimulations.R >{log} 2>&1
     '''
