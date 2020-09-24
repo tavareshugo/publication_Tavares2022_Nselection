@@ -51,7 +51,7 @@ for (i in 1:nrow(params)){
   n_adv_alleles <- params$n_adv_alleles[i]
   output_suffix <- paste(n_selected_loci, selected_effect, n_adv_alleles, sep = "-")
 
-  message("Processing ", output_prefix)
+  message("Processing ", output_suffix)
 
   het <- read_sim("het_",
                   n_selected_loci = n_selected_loci,
@@ -139,7 +139,7 @@ for (i in 1:nrow(params)){
   n_adv_alleles <- params$n_adv_alleles[i]
   output_suffix <- paste(n_selected_loci, selected_effect, n_adv_alleles, sep = "-")
 
-  message("Processing ", output_prefix)
+  message("Processing ", output_suffix)
 
   ped <- read_sim("pedigree_",
                   n_selected_loci = n_selected_loci,
