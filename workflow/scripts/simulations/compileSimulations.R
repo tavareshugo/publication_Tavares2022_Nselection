@@ -70,7 +70,7 @@ for (i in 1:nrow(params)){
 
   # summarise across replicates
   gen10_het_summary[[i]] <- gen10_het[[i]] %>%
-    group_by(selection, gen, locus, selected) %>%
+    group_by(selection, gen, chrom, pos, selected) %>%
     summarise(across(starts_with("het"),
                      list(mean = mean,
                           median = median,
@@ -78,8 +78,7 @@ for (i in 1:nrow(params)){
                           max = max,
                           q10 = ~ quantile(., probs = 0.1),
                           q90 = ~ quantile(., probs = 0.9)))) %>%
-    ungroup() %>%
-    separate(locus, into = c("chrom", "pos"), sep = "-")
+    ungroup()
 }
 
 # bind and write results
