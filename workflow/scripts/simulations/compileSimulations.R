@@ -62,7 +62,11 @@ for (i in 1:nrow(params)){
   # save to list
   gen10_het[[i]] <- het %>%
     filter(gen == 10) %>%
-    separate(locus, into = c("chrom", "pos"), sep = "-")
+    separate(locus, into = c("chrom", "pos"), sep = "-") %>%
+    separate(id,
+             into = c("selected_nloci", "selected_effect", "selected_nalleles", "seed"),
+             sep = "-",
+             convert = TRUE, remove = FALSE)
 
   # get heterozygosity for selected loci only
   gen10_het_selected_loci[[i]] <- gen10_het[[i]] %>%
@@ -78,7 +82,11 @@ for (i in 1:nrow(params)){
                           max = max,
                           q10 = ~ quantile(., probs = 0.1),
                           q90 = ~ quantile(., probs = 0.9)))) %>%
-    ungroup()
+    ungroup() %>%
+    # add parameter information
+    mutate(selected_nloci = n_selected_loci,
+           selected_effect = selected_effect,
+           selected_nalleles = n_adv_alleles)
 }
 
 # bind and write results
@@ -166,7 +174,11 @@ for (i in 1:nrow(params)){
     mutate(seldif = trait_mean_sel - trait_mean,
            cumsel = lag(cumsum(seldif)),
            selintensity = seldif/trait_sd) %>%
-    ungroup()
+    ungroup() %>%
+    separate(id,
+             into = c("selected_nloci", "selected_effect", "selected_nalleles", "seed"),
+             sep = "-",
+             convert = TRUE, remove = FALSE)
 
   trait_response[[i]] <- ped_summary[[i]] %>%
     group_by(id, gen) %>%
@@ -177,7 +189,11 @@ for (i in 1:nrow(params)){
     ungroup() %>%
     gather(key, value, cumsel_directional:response_stabilising) %>%
     separate(key, c("metric", "comparison")) %>%
-    spread(metric, value)
+    spread(metric, value) %>%
+    separate(id,
+             into = c("selected_nloci", "selected_effect", "selected_nalleles", "seed"),
+             sep = "-",
+             convert = TRUE, remove = FALSE)
 
   trait_h2[[i]] <- trait_response[[i]] %>%
     filter(comparison == "directional") %>%
@@ -188,7 +204,11 @@ for (i in 1:nrow(params)){
         broom::tidy()
   })) %>%
     select(-data) %>%
-    unnest(h2)
+    unnest(h2) %>%
+    separate(id,
+             into = c("selected_nloci", "selected_effect", "selected_nalleles", "seed"),
+             sep = "-",
+             convert = TRUE, remove = FALSE)
 
 }
 
