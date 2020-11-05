@@ -31,6 +31,8 @@ parser.add_argument("--n_adv_alleles", help="Number of advantageous alleles",
                     type = int, default = 1)
 parser.add_argument("--outdir", help="Output directory",
                     default = ".")
+parser.add_argument("--suffix", help="Output file name suffix",
+                    default = ".")
 parser.add_argument("--seed", help="Seed number for random number generator. Negative values will pick a random seed.",
                     type = int, default = -1)
 args = parser.parse_args()
@@ -315,7 +317,7 @@ def write_heterozygosity(pop, outfile):
                 #het = expected_heterozygosity(pop.dvars(subpop_idx).alleleFreq[locus].values())
                 
                 # write all but heterozygosity
-                out.write("{a},{b},{c},{d},".format(a = selection,
+                out.write("{a},{b},{c},{d}".format(a = selection,
                                                    b = pop.ancestralGens()-i-1,
                                                    c = pop.locusName(locus),
                                                    d = locus in adv_loci))
@@ -324,7 +326,7 @@ def write_heterozygosity(pop, outfile):
                 for pool_alleles in range(1, 9):
                     freqs = list(pop.dvars(subpop_idx).alleleFreq[locus].values())
                     het = expected_heterozygosity(freqs, pool_alleles)
-                    out.write("{},".format(het))
+                    out.write(",{}".format(het))
                 
                 # add newline
                 out.write("\n")
@@ -364,23 +366,23 @@ def write_frequency(pop, outfile):
                                                              e = locus in adv_loci))
 
 
-file_suffix = "{a}-{b}-{c}-seed{d}".format(a = args.n_selected_loci,
-                                               b = args.selected_effect,
-                                               c = args.n_adv_alleles,
-                                               d = "random" if args.seed < 0 else args.seed)
+# file_suffix = "{a}-{b}-{c}-seed{d}".format(a = args.n_selected_loci,
+#                                                b = args.selected_effect,
+#                                                c = args.n_adv_alleles,
+#                                                d = "random" if args.seed < 0 else args.seed)
 # save pedigree
 write_pedigree(pop, 
                "{outdir}/pedigree_{suffix}.csv".format(outdir = args.outdir,
-                                                       suffix = file_suffix))
+                                                       suffix = args.suffix))
 
 # save allele frequency
 write_frequency(pop,
                 "{outdir}/freq_{suffix}.csv".format(outdir = args.outdir,
-                                                    suffix = file_suffix))
+                                                    suffix = args.suffix))
 
 write_heterozygosity(pop,
                      "{outdir}/het_{suffix}.csv".format(outdir = args.outdir,
-                                                        suffix = file_suffix))
+                                                        suffix = args.suffix))
 
 
 # =============================================================================

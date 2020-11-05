@@ -32,8 +32,15 @@ read_sim <- function(prefix, n_selected_loci, selected_effect,
   x
 }
 
-# read parameter file list
-params <- read_csv("data/intermediate/simulations/parameter_list.csv")
+# make parameter combination table
+params <- expand_grid(n_selected_loci = c("1", "3", "5", "10", "20"),
+                      selected_effect = c(0.1, 0.2, 0.3, 0.5, 0.7, 1),
+                      n_adv_alleles = c(1, 2, 4, 8)) %>%
+  bind_rows(
+    expand_grid(n_selected_loci = c("5in1", "10in2", "5in1linked", "5in1plus4"),
+                selected_effect = c(0.1, 0.2, 0.3, 0.5),
+                n_adv_alleles = c(1, 2, 4, 8))
+  )
 
 
 # Heterozygosity ------------------------------------------------------
@@ -66,7 +73,7 @@ for (i in 1:nrow(params)){
     separate(id,
              into = c("selected_nloci", "selected_effect", "selected_nalleles", "seed"),
              sep = "-",
-             convert = TRUE, remove = FALSE)
+             convert = FALSE, remove = TRUE)
 
   # get heterozygosity for selected loci only
   gen10_het_selected_loci[[i]] <- gen10_het[[i]] %>%
@@ -126,7 +133,7 @@ gen10_het_selected_loci %>%
 
 
 # Pedigree ----------------------------------------------------------------
-message("Processing train/pedigree files...")
+message("Processing trait/pedigree files...")
 
 # function to calculate inbreeding
 inbreeding <- function(ind, mother, father){
@@ -178,7 +185,7 @@ for (i in 1:nrow(params)){
     separate(id,
              into = c("selected_nloci", "selected_effect", "selected_nalleles", "seed"),
              sep = "-",
-             convert = TRUE, remove = FALSE)
+             convert = FALSE, remove = FALSE)
 
   trait_response[[i]] <- ped_summary[[i]] %>%
     group_by(id, gen) %>%
@@ -193,7 +200,7 @@ for (i in 1:nrow(params)){
     separate(id,
              into = c("selected_nloci", "selected_effect", "selected_nalleles", "seed"),
              sep = "-",
-             convert = TRUE, remove = FALSE)
+             convert = FALSE, remove = FALSE)
 
   trait_h2[[i]] <- trait_response[[i]] %>%
     filter(comparison == "directional") %>%
@@ -208,7 +215,7 @@ for (i in 1:nrow(params)){
     separate(id,
              into = c("selected_nloci", "selected_effect", "selected_nalleles", "seed"),
              sep = "-",
-             convert = TRUE, remove = FALSE)
+             convert = FALSE, remove = TRUE)
 
 }
 
