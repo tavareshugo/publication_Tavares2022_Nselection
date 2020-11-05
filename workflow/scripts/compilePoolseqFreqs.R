@@ -125,12 +125,16 @@ harp_diversity <- estimateDiversity(harp_freqs)
 # Tidy data ----
 #
 # Remove resequenced pools from dataset (they are highly correlated)
+reseq_samples <- unique(harp_freqs$sample)
+reseq_samples <- reseq_samples[grep("_reseq", reseq_samples)]
+reseq_samples <- gsub("_reseq", "", reseq_samples)
+
 freqs <- harp_freqs %>%
-    filter(!(sample %in% c("hn_average_a", "hn_average_b", "hn_most_b", "ln_average_b", "ln_most_a", "ln_random_a"))) %>%
+    filter(!(sample %in% reseq_samples)) %>%
     mutate(rep = str_replace(rep, "_reseq", ""))
 
 diversity <- harp_diversity %>%
-    filter(!(sample %in% c("hn_average_a", "hn_average_b", "hn_most_b", "ln_average_b", "ln_most_a", "ln_random_a"))) %>%
+    filter(!(sample %in% reseq_samples)) %>%
     mutate(rep = str_replace(rep, "_reseq", ""))
 
 
