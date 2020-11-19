@@ -66,7 +66,10 @@ for (i in 1:nrow(params)){
     separate(id,
              into = c("selected_nloci", "selected_effect", "selected_nalleles", "seed"),
              sep = "-",
-             convert = TRUE, remove = FALSE)
+             convert = TRUE, remove = FALSE) %>%
+    group_by(id, selection) %>%
+    mutate(het_quantile = ecdf(het)(het)) %>%
+    ungroup()
 
   # get heterozygosity for selected loci only
   gen10_het_selected_loci[[i]] <- gen10_het[[i]] %>%
