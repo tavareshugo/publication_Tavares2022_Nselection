@@ -88,6 +88,13 @@ mosaic_filtered <- bed_intersect(mosaic, mosaic_intervals) %>%
   select(-start.x, -end.x) %>%
   rename_with(~ str_replace(., "\\.x", ""))
 
+# add both nomenclature for MAGIC ids
+mosaic_filtered <- magics %>%
+  distinct(our_name, public_name) %>%
+  right_join(mosaic_filtered, by = c("public_name" = "magic")) %>%
+  # retain and rename columns of interest
+  select(hsril_id = our_name, magic_id = public_name,
+         chrom, start, end, accession)
 
 # Save results ------------------------------------------------------------
 
@@ -104,7 +111,7 @@ unlink("data/external/founder_genotypes/mosaic.txt")
 
 # Confirm that these intervals contain all 324 accessions with mosaics available
 mosaic_filtered %>%
-  distinct(magic, chrom, accession, start, end) %>%
+  distinct(magic_id, chrom, accession, start, end) %>%
   bed_cluster() %>%
   count(.id) %>%
   count(n)
