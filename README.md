@@ -1,4 +1,4 @@
-# Code for Tavares, Readshaw et al 2020
+# Code for Tavares, Readshaw et al
 
 This is still under review and subject to change. 
 
