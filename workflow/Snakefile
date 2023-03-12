@@ -89,7 +89,9 @@ rule getReference:
 # this fetches accession SNPs necessary for HARP
 rule getAccessionGenotypes:
   output:
-    expand("data/external/founder_genotypes/accessions_chrom{chrom}.dgrp", chrom = [1, 2, 3, 4, 5])
+    expand("data/external/founder_genotypes/accessions_chrom{chrom}.dgrp", chrom = [1, 2, 3, 4, 5]),
+    "data/external/founder_genotypes/accessions_snps.csv",
+    "data/external/founder_genotypes/accessions_genotypes.csv"
   params:
     runtime="01:00:00" # for the HPC scheduler (otherwise can be ignored)
   log:
@@ -116,6 +118,25 @@ rule getMagicMosaics:
     "envs/getKnownSnps.yaml"
   shell:
     "Rscript --vanilla workflow/scripts/data_processing_founders/getMagicMosaics.R"
+    ">{log} 2>&1"
+
+# impute genotypes for each MAGIC line
+rule imputeMagicGeno:
+  input:
+    "data/external/founder_genotypes/magic_mosaics.csv",
+    "data/external/founder_genotypes/accessions_genotypes.csv"
+  output:
+    "data/external/founder_genotypes/imputed_magic_accession.csv",
+    "data/external/founder_genotypes/imputed_magic_snp.csv"
+  params:
+    runtime="01:00:00" # for the HPC scheduler (otherwise can be ignored)
+  log:
+    "logs/imputeMagicGeno.log"
+  threads: 1
+  conda: 
+    "envs/imputeMagicGeno.yaml"
+  shell:
+    "Rscript --vanilla workflow/scripts/data_processing_founders/imputeMagicGeno.R"
     ">{log} 2>&1"
 
 

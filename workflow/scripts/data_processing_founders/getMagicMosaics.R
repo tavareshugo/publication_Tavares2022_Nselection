@@ -29,14 +29,10 @@ magics <- ped %>%
   pivot_longer(cols = c(mother, father), names_to = "parent", values_to = "id")
 
 # get public names to match with HSRIL names
-if(!file.exists("data/external/founder_genotypes/magic_public_ids.xls")){
-  download.file("https://www.genetics.org/lookup/suppl/doi:10.1534/genetics.114.170746/-/DC1/genetics.114.170746-3.xls",
-                "data/external/founder_genotypes/magic_public_ids.xls")
-}
-
+# Supplementary file 3 https://doi.org/10.1534/genetics.114.170746
 # even though the file extension is ".xls" I had to use read_xlsx function
 # see https://github.com/tidyverse/readxl/issues/598
-magics <- read_xlsx("./data/external/founder_genotypes/magic_public_ids.xls",
+magics <- read_xlsx("./data/external/founder_genotypes/genetics.114.170746-3.xls",
            sheet = "seed area", range = "H1:I824") %>%
   # tidy names up
   rename_with(~ str_to_lower(str_replace(., " ", "_"))) %>%
@@ -47,13 +43,8 @@ magics <- read_xlsx("./data/external/founder_genotypes/magic_public_ids.xls",
 #
 # Get MAGIC line mosaics ----
 #
-# Get file From Imprialou et al 2017 (https://doi.org/10.1534/genetics.116.192823)
-if(!file.exists("./data/external/founder_genotypes/mosaic.txt")){
-  download.file("http://www.genetics.org/highwire/filestream/436302/field_highwire_adjunct_files/5/TableS2.txt",
-                destfile = "./data/external/founder_genotypes/mosaic.txt")
-}
-
-mosaic <- read_table2("./data/external/founder_genotypes/mosaic.txt")
+# TableS2 From Imprialou et al 2017 (https://doi.org/10.1534/genetics.116.192823)
+mosaic <- read_table("./data/external/founder_genotypes/imprialou_mosaic.txt")
 
 # Tidy the mosaic table
 mosaic <- mosaic %>%
@@ -93,40 +84,37 @@ mosaic_filtered <- magics %>%
   distinct(our_name, public_name) %>%
   right_join(mosaic_filtered, by = c("public_name" = "magic")) %>%
   # retain and rename columns of interest
-  select(hsril_id = our_name, magic_id = public_name,
+  select(hsril = our_name, magic = public_name,
          chrom, start, end, accession)
 
 # Save results ------------------------------------------------------------
 
 # save tidy mosaic table
-write_csv(mosaic_filtered,
-          "data/external/founder_genotypes/magic_mosaics.csv")
-
-# remove unnecessary files
-unlink("data/external/founder_genotypes/magic_public_ids.xls")
-unlink("data/external/founder_genotypes/mosaic.txt")
+mosaic_filtered %>%
+  arrange(as.numeric(str_remove(magic, "MAGIC.")), chrom, start) %>%
+  write_csv("data/external/founder_genotypes/magic_mosaics.csv")
 
 
 # Checks ------------------------------------------------------------------
 
 # Confirm that these intervals contain all 324 accessions with mosaics available
 mosaic_filtered %>%
-  distinct(magic_id, chrom, accession, start, end) %>%
+  distinct(magic, chrom, accession, start, end) %>%
   bed_cluster() %>%
   count(.id) %>%
   count(n)
 
 # distance between mosaic intervals
-mosaic_filtered %>%
-  distinct(chrom, start, end) %>%
-  group_by(chrom) %>%
-  arrange(start, end) %>%
-  mutate(diff = lead(start) - end) %>%
-  ungroup() %>%
-  select(chrom, start, end, diff) %>%
-  arrange(chrom, start, end) %>%
-  ggplot(aes(diff)) +
-  geom_histogram() +
-  scale_x_log10() +
-  annotation_logticks(sides = "b")
+# mosaic_filtered %>%
+#   distinct(chrom, start, end) %>%
+#   group_by(chrom) %>%
+#   arrange(start, end) %>%
+#   mutate(diff = lead(start) - end) %>%
+#   ungroup() %>%
+#   select(chrom, start, end, diff) %>%
+#   arrange(chrom, start, end) %>%
+#   ggplot(aes(diff)) +
+#   geom_histogram() +
+#   scale_x_log10() +
+#   annotation_logticks(sides = "b")
 
