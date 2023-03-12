@@ -1,9 +1,11 @@
 library(tidyverse)
 library(ggridges)
 library(patchwork)
+library(valr)
 
 theme_set(theme_classic())
 
+source("./analysis/functions/findPeaks.R")
 
 # Read pedigree -----------------------------------------------------------
 
@@ -147,6 +149,47 @@ sim_het <- sim_freqs %>%
   ungroup() %>%
   separate(population, c("nitrate", "selection", "rep"), remove = FALSE)
 
+# join with empirical and calculate z-score
+het <- sim_het %>%
+  # calculate mean and SD of simulated heterozygosity
+  group_by(population) %>%
+  summarise(sim_het_mean = mean(het),
+            sim_het_sd = sd(het)) %>%
+  # join with empirical data
+  full_join(het, by = c("population" = "sample")) %>%
+  # scale as a z-score
+  mutate(zscore = (het - sim_het_mean)/sim_het_sd) %>%
+  # define a threshold as -4 SD below simulated means
+  mutate(sig = ifelse(zscore <= -4, zscore, NA)) %>%
+  mutate(selection = fct_relevel(selection, "random"))
+
+# define table with significant dips
+peaks <- het %>%
+  group_by(population) %>%
+  mutate(peak = findPeaks(zscore, -4, below = TRUE)) %>%
+  drop_na(peak) %>%
+  group_by(population, nitrate, rep, selection, chrom, peak,
+             .drop = TRUE) %>%
+    summarise(start = min(start),
+              end = max(end),
+              pos = pos[which(zscore == min(zscore))],
+              zscore = zscore[which(zscore == min(zscore))]) %>%
+    ungroup()
+    
+peaks <- peaks %>%
+    group_by(population, nitrate, rep, selection, chrom) %>%
+    bed_cluster(max_dist = 400e3) %>%
+    group_by(population, nitrate, rep, selection, chrom, .id) %>%
+    summarise(start = min(start), 
+              end = max(end), 
+              pos = pos[which(zscore == min(zscore))],
+              zscore = min(zscore)) %>%
+    group_by(selection) %>%
+    arrange(chrom, start) %>%
+    mutate(peak_id = 1:n()) %>%
+    ungroup() %>%
+    select(-.id)
+
 
 # Visualise -----------------------------------------------------
 
@@ -179,28 +222,19 @@ p2 <- phen_sum %>%
   theme(legend.position = "none")
 
 # plot the scan
-p3 <- sim_het %>%
-  # calculate mean and SD of simulated heterozygosity
-  group_by(population) %>%
-  summarise(sim_het_mean = mean(het),
-            sim_het_sd = sd(het)) %>%
-  # join with empirical data
-  full_join(het, by = c("population" = "sample")) %>%
-  filter(selection != "stabilising") %>%
-  # scale as a z-score
-  mutate(zscore = (het - sim_het_mean)/sim_het_sd) %>%
-  # define a threshold as -4 SD below simulated means
-  mutate(sig = ifelse(zscore <= -4, zscore, NA)) %>%
-  mutate(selection = fct_relevel(selection, "random")) %>%
+p3 <- het %>%
   ggplot(aes(pos/1e6, zscore)) +
   geom_line(aes(colour = selection)) +
-  geom_point(aes(y = sig)) +
+  #geom_point(aes(y = sig)) +
   geom_hline(yintercept = -4, linetype = "dashed", colour = "grey48") +
   geom_rect(data = centromeres, inherit.aes = FALSE,
             aes(xmin = start/1e6 - 0.5, xmax = end/1e6 + 0.5, ymin = -Inf, ymax = Inf),
             fill = "grey", alpha = 0.5) +
+  geom_point(data = peaks, shape = 17, size = 2,
+             aes(colour = selection, y = zscore - 1)) +
   facet_grid(nitrate + rep ~ chrom, scales = "free_x", space = "free_x") +
   scale_x_continuous(breaks = seq(0, 30, 10)) +
+  scale_y_continuous(breaks = seq(-12, 12, 4)) +
   scale_colour_brewer(palette = "Dark2") +
   labs(x = "Mb", y = "Scaled heterozygosity") +
   theme(legend.position = "none")
