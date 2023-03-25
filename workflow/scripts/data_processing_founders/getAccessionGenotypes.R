@@ -100,7 +100,7 @@ diag_snps <- founder_genotypes %>%
 
 # List of founder SNP alleles including diagnostic accession if there is one
 founder_genotypes %>%
-  distinct(snp, chrom, start, end, ref, snp_allele) %>%
+  distinct(snp, chrom, start, end, ref, snp_allele, major_allele_count, ref_allele_count) %>%
   filter(ref != snp_allele) %>%
   left_join(diag_snps) %>%
   rename(alt = snp_allele) %>%
@@ -109,5 +109,3 @@ founder_genotypes %>%
 # Write the genotypes themselves in tabular format
 founder_genotypes %>%
   write_csv("accessions_genotypes.csv")
-
-
