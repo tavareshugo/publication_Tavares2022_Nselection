@@ -74,7 +74,7 @@ for (i in 1:nrow(params)){
              into = c("selected_nloci", "selected_effect", "selected_nalleles", "seed"),
              sep = "-",
              convert = FALSE, remove = TRUE) %>%
-    group_by(selected_nloci, selected_effect, selected_nalleles, seed, selection) %>%
+    group_by(id, selection) %>%
     mutate(het_quantile = ecdf(het)(het)) %>%
     ungroup()
 
