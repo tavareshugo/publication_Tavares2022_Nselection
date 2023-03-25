@@ -78,11 +78,11 @@ sweep_freqs %>%
 
 # Haplotype frequency spectrum for each candidate sweep
 p2 <- sweep_freqs %>%
-  ggplot(aes(str_to_sentence(accession), frequency)) +
+  ggplot(aes(frequency, str_to_sentence(accession))) +
   geom_col() +
   facet_grid( ~ paste(nitrate, rep, sep = " - ")) +
-  labs(x = "Accession", y = "Frequency") +
-  coord_flip()
+  labs(x = "Frequency", y = "Accession",
+       title = "Chr 1 at 9.4Mb")
 
 
 #### panel C ####
@@ -109,14 +109,14 @@ p3 <- sweep_freqs %>%
   ggplot(aes(frequency, str_to_sentence(accession))) +
   geom_col() +
   facet_grid( ~ paste(nitrate, rep, sep = " - ")) +
-  labs(x = "Accession", y = "Frequency")
+  labs(x = "Frequency", y = "Accession", 
+       title = "Chr 5 at 8Mb")
 
 # save graph
-pdf("./figures/FigS08.pdf", width = 7.5, height = 10)
 p1 + p2 + p3 +
   plot_layout(ncol = 1, heights = c(2.5, 1, 1)) +
   plot_annotation(tag_levels = "A")
-dev.off()
+ggsave("./figures/FigS08.pdf", width = 7.5, height = 10)
 
 # visualise the whole frequency spectrum across chromosome
 pool200 %>%
