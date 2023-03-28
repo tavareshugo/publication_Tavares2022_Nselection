@@ -10,8 +10,8 @@
 #SBATCH -a 1-100  # replicate simulations
 
 # This should ideally be incorporated into snakemake...
-
-source activate simupop
+source $(conda info --base)/etc/profile.d/conda.sh
+conda activate simupop
 
 # loop through parameters
 # while read -r PARAMS
@@ -24,9 +24,9 @@ source activate simupop
 #     --seed "20200916$SLURM_ARRAY_TASK_ID"
 # done < "data/intermediate/simulations/parameter_list.csv"
 
-for NSEL in 1 3 5 10 20
+for NSEL in 1 3 5 10 20 25 30 35
 do
-  for EFF in 0.1 0.2 0.3 0.5 0.7 1
+  for EFF in 0.05 0.1 0.2 0.3 0.5 0.7 1
   do
     for NADV in 1 2 4 8
     do
@@ -40,6 +40,23 @@ do
         --seed "20200916$SLURM_ARRAY_TASK_ID"
         
     done
+  done
+done
+
+# approximately infinitesimal - 500 loci, i.e. 100 per chromosome
+NSEL="500"
+for EFF in 0.001 0.002 0.005 0.01 0.03 0.05
+do
+  for NADV in 1 2 4 8
+  do
+    # echo "$NSEL-$EFF-$NADV"
+    python workflow/scripts/simulations/single_replicate_simulation.py \
+      --n_selected_loci 500 \
+      --selected_effect $EFF \
+      --n_adv_alleles $NADV \
+      --outdir "data/intermediate/simulations/" \
+      --suffix "${NSEL}-${EFF}-${NADV}-seed${SLURM_ARRAY_TASK_ID}" \
+      --seed "20200916$SLURM_ARRAY_TASK_ID"
   done
 done
 
