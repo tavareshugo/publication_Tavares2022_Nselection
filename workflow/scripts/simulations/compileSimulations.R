@@ -33,12 +33,17 @@ read_sim <- function(prefix, n_selected_loci, selected_effect,
 }
 
 # make parameter combination table
-params <- expand_grid(n_selected_loci = c("1", "3", "5", "10", "20"),
-                      selected_effect = c(0.1, 0.2, 0.3, 0.5, 0.7, 1),
+params <- expand_grid(n_selected_loci = c("1", "3", "5", "10", "20", "25", "30", "35"),
+                      selected_effect = c(0.05, 0.1, 0.2, 0.3, 0.5, 0.7, 1),
                       n_adv_alleles = c(1, 2, 4, 8)) %>%
   bind_rows(
     expand_grid(n_selected_loci = c("5in1", "10in2", "5in1linked", "5in1plus4"),
                 selected_effect = c(0.1, 0.2, 0.3, 0.5),
+                n_adv_alleles = c(1, 2, 4, 8))
+  ) %>%
+  bind_rows(
+    expand_grid(n_selected_loci = "500", 
+                selected_effect = c(0.001, 0.002, 0.005, 0.01, 0.03, 0.05),
                 n_adv_alleles = c(1, 2, 4, 8))
   )
 
