@@ -33,7 +33,7 @@ read_sim <- function(prefix, n_selected_loci, selected_effect,
 }
 
 # make parameter combination table
-params <- expand_grid(n_selected_loci = c("1", "3", "5", "10", "20", "25", "30", "35"),
+params <- expand_grid(n_selected_loci = c("1", "3", "5", "10", "20", "30", "40", "50", "60"),
                       selected_effect = c(0.05, 0.1, 0.2, 0.3, 0.5, 0.7, 1),
                       n_adv_alleles = c(1, 2, 4, 8)) %>%
   bind_rows(
@@ -43,7 +43,7 @@ params <- expand_grid(n_selected_loci = c("1", "3", "5", "10", "20", "25", "30",
   ) %>%
   bind_rows(
     expand_grid(n_selected_loci = "500", 
-                selected_effect = c(0.001, 0.002, 0.005, 0.01, 0.03, 0.05),
+                selected_effect = c(0.01, 0.03, 0.05, 0.08, 0.1),
                 n_adv_alleles = c(1, 2, 4, 8))
   )
 
@@ -78,7 +78,7 @@ for (i in 1:nrow(params)){
     separate(id,
              into = c("selected_nloci", "selected_effect", "selected_nalleles", "seed"),
              sep = "-",
-             convert = FALSE, remove = TRUE) %>%
+             convert = FALSE, remove = FALSE) %>%
     group_by(id, selection) %>%
     mutate(het_quantile = ecdf(het)(het)) %>%
     ungroup()
