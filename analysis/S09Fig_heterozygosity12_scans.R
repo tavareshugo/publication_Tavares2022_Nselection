@@ -1,5 +1,5 @@
 #
-# Fig S07
+# Fig S09
 #
 
 #### Setup ####
@@ -116,7 +116,7 @@ p3 <- sweep_freqs %>%
 p1 + p2 + p3 +
   plot_layout(ncol = 1, heights = c(2.5, 1, 1)) +
   plot_annotation(tag_levels = "A")
-ggsave("./figures/FigS08.pdf", width = 7.5, height = 10)
+ggsave("./figures/S09Fig.pdf", width = 7.5, height = 10)
 
 # visualise the whole frequency spectrum across chromosome
 pool200 %>%

@@ -1,5 +1,5 @@
 #
-# Fig 01
+# Fig S2
 #
 
 #### Setup ####
@@ -19,8 +19,7 @@ scale_fill_continuous <- scale_fill_viridis_c
 scale_fill_discrete <- function(palette = "Dark2", ...) scale_fill_brewer(palette = palette, ...)
 
 # Read data
-source("./scripts/R/data_processing/read_phenotypes.R")
-
+phen_response <- readRDS("./data/processed/phenotypes/phenotypes_response.rds")
 
 #### make plots ####
 
@@ -35,6 +34,5 @@ p1 <- phen_response %>%
   scale_color_viridis_d() + 
   theme(legend.position = c(0, 1), legend.justification = c(0, 1))
 
-pdf("./figures/FigS02.pdf", width = 7.5, height = 4)
 p1
-dev.off()
+ggsave("./figures/S02Fig.pdf", width = 7.5, height = 4)

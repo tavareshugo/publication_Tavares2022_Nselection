@@ -1,3 +1,7 @@
+#
+# Fig S14
+#
+
 library(seqinr)
 library(magrittr)
 library(ape)
@@ -28,7 +32,7 @@ labs <- countHap(max2_hap, max2) %>%
 
 attr(max2_hapnet, "labels") <- labs
 
-pdf("./figures/FigS12.pdf", width = 7.5, height = 4)
+pdf("./figures/S14Fig.pdf", width = 7.5, height = 4)
 plot(max2_hapnet,
      size = attr(max2_hapnet, "freq") * 1.5,
      fast = TRUE, labels = TRUE,

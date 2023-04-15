@@ -1,5 +1,5 @@
 #
-# Fig 06
+# Fig 05
 #
 
 #### Setup ####
@@ -57,7 +57,8 @@ p1 <- candidate_sweeps %>%
                  aes(x = as.character(chrom), ymin = start/1e6-0.5, ymax = end/1e6+0.5),
                  size = 3, colour = "grey", alpha = 0.8) +
   facet_grid(chrom ~ ., scales = "free", space = "free") +
-  geom_label(data = qtl, aes(x = as.character(chrom), y = pos/1e6, label = nitrate),
+  geom_label(data = mutate(qtl, chrom = as.character(chrom)), 
+             aes(x = chrom, y = pos/1e6, label = nitrate),
              label.padding = unit(0.1, "lines"), size = 2.5) +
   scale_y_continuous(breaks = seq(0, 30, 5)) +
   coord_flip() +
@@ -97,7 +98,7 @@ p2.1 <- sweep_freqs %>%
 
 # LN - A peaks
 p2.2 <- sweep_freqs %>%
-  filter(peak_id %in% c(3, 8) & sample == "LN-directional-A") %>%
+  filter(peak_id %in% c(3, 8) & sample == "LN-directional-A_reseq") %>%
   mutate(accession = str_to_sentence(accession)) %>%
   ggplot(aes(accession, frequency)) +
   geom_col() +
@@ -130,10 +131,7 @@ p2.4 <- sweep_freqs %>%
 
 
 
-pdf("./figures/Fig06.pdf", width = 7.5, height = 10)
 p1 /
 {p2.1 + p2.2 + p2.3 + p2.4 + plot_layout(ncol = 2, nrow = 2)} +
   plot_layout(ncol = 1, heights = c(1,1.5))
-dev.off()
-
-
+ggsave("./figures/Fig05.pdf", width = 7.5, height = 10)

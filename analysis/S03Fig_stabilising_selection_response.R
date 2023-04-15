@@ -19,8 +19,8 @@ scale_fill_continuous <- scale_fill_viridis_c
 scale_fill_discrete <- function(palette = "Dark2", ...) scale_fill_brewer(palette = palette, ...)
 
 # Read data
-source("./scripts/R/data_processing/read_phenotypes.R")
-
+phen_sum <- readRDS("./data/processed/phenotypes/phenotypes_summarised.rds")
+var_tests <- readRDS("./data/processed/phenotypes/variance_tests.rds")
 
 
 #### Fig S03 ####
@@ -60,9 +60,6 @@ p3 <- var_tests %>%
   labs(x = "Generation", y = "SD response\n(selected - control)", tag = "C")
 
 
-pdf("./figures/FigS03.pdf", width = 7.5, height = 4)
+
 p1 + p2 + plot_layout(ncol = 1)
-dev.off()
-
-
-
+ggsave("./figures/S03Fig.pdf", width = 7.5, height = 4)

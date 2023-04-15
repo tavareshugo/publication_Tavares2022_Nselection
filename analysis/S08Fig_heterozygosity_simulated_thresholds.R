@@ -1,3 +1,7 @@
+#
+# Fig S8
+#
+
 library(tidyverse)
 library(ggridges)
 library(patchwork)
@@ -43,6 +47,9 @@ het <- read_csv("data/processed/poolseq/haplotype_diversity_200kb.csv") %>%
 
 # centromeres (to annotate plot)
 centromeres <- read_csv("data/external/tair9_centromeres.csv")
+
+# summarised phenotype data (for inbreeding coef)
+phen_sum <- readRDS("./data/processed/phenotypes/phenotypes_summarised.rds")
 
 
 # Simulation --------------------------------------------------------------
@@ -239,7 +246,7 @@ p3 <- het %>%
   labs(x = "Mb", y = "Scaled heterozygosity") +
   theme(legend.position = "none")
 
-pdf("./figures/FigS07.pdf", width = 7.5, height = 10)
+
 (
   (
     (p1 | p2) + plot_layout(widths = c(2, 1))
@@ -249,4 +256,4 @@ pdf("./figures/FigS07.pdf", width = 7.5, height = 10)
   plot_annotation(tag_levels = "A") +
   plot_layout(heights = c(1, 4), guides = "collect") &
   theme(legend.position = "top")
-dev.off()
+ggsave("./figures/S08Fig.pdf", width = 7.5, height = 10)

@@ -1,5 +1,5 @@
 #
-# Fig S05
+# Fig S06
 #
 
 #### Setup ####
@@ -56,6 +56,7 @@ magic_cor <- magic_sum %>%
   unnest(bolt_total, .sep = "_")
 
 # Trait correlations across the generations
+# bootstrap CI take a while to run
 sel_cor <- phen %>%
   rename(bolt = sow_to_bolt) %>%
   group_by(generation, replicate, nitrate_grown, selection) %>%
@@ -64,8 +65,7 @@ sel_cor <- phen %>%
                                           method = "spearman", use = "complete.obs")))
 
 
-
-#### Fig S05 ####
+#### Paper figure ####
 
 # MAGIC
 p1 <- magic_sum %>%
@@ -116,6 +116,5 @@ p4 <- phen_sum %>%
   scale_x_continuous(breaks = 0:10) +
   theme(legend.position = "none")
 
-pdf("./figures/FigS05.pdf", width = 7.5, height = 8.70)
 p1 + p2 + p3 + p4 + plot_layout(ncol = 1)
-dev.off()
+ggsave("./figures/S06Fig.pdf", width = 7.5, height = 8.70)

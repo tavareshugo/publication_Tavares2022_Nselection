@@ -1,5 +1,5 @@
 #
-# Fig 02
+# Fig S4
 #
 
 #### Setup ####
@@ -61,8 +61,6 @@ p3 <- phen_filter %>%
   labs(x = "Sowing month", y = "CV", tag = "C") +
   
 
-
-pdf("./figures/Fig02.pdf", width = 7.5, height = 7)
 p1 + p2 + p3 + plot_layout(ncol = 1)
-dev.off()
+ggsave("./figures/S04Fig.pdf", width = 7.5, height = 7)
 

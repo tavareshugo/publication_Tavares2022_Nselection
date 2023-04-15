@@ -1,5 +1,5 @@
 #
-# Fig 04
+# Fig 03
 #
 
 #### Setup ####
@@ -27,36 +27,43 @@ scale_fill_discrete <- function(palette = "Dark2", ...) scale_fill_brewer(palett
 #### Read data ####
 
 # read phenotype data
-source("./analysis/data_processing/read_phenotypes.R")
+phen_sum <- readRDS("./data/processed/phenotypes/phenotypes_summarised.rds")
+# source("./analysis/data_processing/read_phenotypes.R")
 
 # heterozygosity scans at 200Kb windows
-pool200 <- read_csv("./data_processed/poolseq/poolseq_window200kb.csv",
-                    col_types = "ccccciiiiddddddddccddd") %>%
-  mutate(selection = factor(selection, levels = c("random", "directional", "stabilising")))
+pool200 <- read_csv("./data/processed/poolseq/haplotype_diversity_200kb.csv")
+pool200 <- pool200 %>%
+  mutate(selection = factor(selection, levels = c("random", "directional", "stabilising")),
+         hap_het = 1 - hap_hom1) %>%
+  select(sample, nitrate, selection, rep, chrom, pos, hap_het)
 
-# read starting population scans at 200kb windows
-startpop200 <- read_csv("./data_processed/startpop/startpop_window200kb.csv",
-                        col_types = "iiiiidididdddddddddddddddddd")
+# read starting population scans at 200kb intervals
+startpop <- read_csv("./data/external/founder_genotypes/startpop_window200kb.csv")
+startpop <- startpop %>%
+  mutate(sample = "founder population") %>%
+  select(sample, chrom, pos, hap_het)
+# startpop200 <- read_csv("./data_processed/startpop/startpop_window200kb.csv",
+#                         col_types = "iiiiidididdddddddddddddddddd")
 
 # put these two together
-pool200 <- startpop200 %>%
-  mutate(sample = "founder population") %>%
-  select(sample, chrom, start = win_start, end = win_end, hap_het = hap_het_mean) %>%
-  bind_rows(pool200)
+pool200 <- bind_rows(pool200, startpop)
+
 
 #### make graphs ####
 
 # boxplot of heterozygosity
+h0 <- 1 - (19 * ((1/19)^2)) # starting heterozygosity
+h10 <- h0 * (1 - 1/(2*40))^10 # theoretical gen10 heterozygosity
 p1 <- pool200 %>%
   group_by(sample) %>%
   mutate(med = median(hap_het)) %>%
   ungroup() %>%
   mutate(sample = reorder(sample, med)) %>%
   ggplot(aes(sample, hap_het, fill = selection, group = sample)) +
-  geom_boxplot(position = position_dodge2(preserve = "total")) +
-  geom_point(stat = "summary", fun.y = "mean") +
-  geom_hline(yintercept = 1 - (19 * ((1/19)^2)),
+  geom_hline(yintercept = c(h0, h10),
              linetype = "dashed", colour = "grey48") +
+  geom_boxplot(position = position_dodge2(preserve = "total")) +
+  geom_point(stat = "summary", fun = "mean") +
   labs(x = "Sample", y = "Heterozygosity", tag = "A") +
   theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 0.7))
 
@@ -94,6 +101,5 @@ p3 <- phen_sum %>%
 
 
 # build the figure
-pdf("./figures/Fig04.pdf", width = 7.5, height = 6)
 p1 / (p2 + p3)
-dev.off()
+ggsave("./figures/Fig03.pdf", width = 7.5, height = 6)

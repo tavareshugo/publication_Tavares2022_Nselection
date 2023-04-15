@@ -1,5 +1,5 @@
 #
-# Fig 03
+# Fig 02
 #
 
 #### Setup ####
@@ -7,6 +7,8 @@
 library(tidyverse)
 library(patchwork)
 library(here)
+library(lme4)
+library(emmeans)
 
 # ensure working directory is project root
 setwd(here())
@@ -104,8 +106,6 @@ gen10 <- phen %>%
   select(population, selection, nitrate_selected,
          nitrate_grown, replicate, family, total)
 
-library(lme4)
-library(emmeans)
 
 # fit model separately for each set of populations
 # (I couldn't figure out how to implement a single model with right levels of nesting)
@@ -134,7 +134,8 @@ contrast_output %>%
   mutate(print = paste0("replicate ", replicate, ": ", round(estimate, 2), " +/- ", round(SE, 2), ", p = ", round(padj, 4), "; ")) %>%
   select(nitrate_grown, contrast, print)
 
-#### Fig 03 ####
+
+#### Paper figure ####
 
 # Plasticity response
 p1 <- gen10_plast %>%
@@ -160,6 +161,5 @@ p2 <- bolt_response %>%
   labs(x = "Generation", y = "Flowering response\n(A statistic)", tag = "B") +
   scale_color_viridis_d()
 
-pdf("./figures/Fig03.pdf", width = 7.5, height = 5)
 p1 + p2 + plot_layout(ncol = 1)
-dev.off()
+ggsave("./figures/Fig02.pdf", width = 7.5, height = 5)

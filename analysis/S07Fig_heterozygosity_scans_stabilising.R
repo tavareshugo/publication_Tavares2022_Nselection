@@ -1,5 +1,5 @@
 #
-# Fig 05
+# Fig S07
 #
 
 #### Setup ####
@@ -8,8 +8,8 @@ library(tidyverse)
 library(patchwork)
 
 # Change ggplot2 defaults
-theme_set(theme_bw() +
-            theme(panel.grid = element_blank(),
+theme_set(theme_bw() + 
+            theme(panel.grid = element_blank(), 
                   text = element_text(size = 10),
                   legend.background = element_blank()))
 
@@ -26,13 +26,13 @@ scale_fill_discrete <- function(palette = "Dark2", ...) scale_fill_brewer(palett
 source("./analysis/data_processing/read_poolseq.R")
 
 # filter candidate sweeps to retain only ones of interest for this figure
-candidate_sweeps <- candidate_sweeps %>%
-  filter(selection != "stabilising" & statistic == "H1")
+candidate_sweeps <- candidate_sweeps %>% 
+  filter(selection != "directional" & statistic == "H1")
 
 #### make graphs ####
 
-p1 <- pool200 %>%
-  filter(selection != "stabilising") %>%
+p1 <- pool200 %>% 
+  filter(selection != "directional") %>% 
   ggplot() +
   geom_line(aes(pos/1e6, hap_het, colour = selection)) +
   geom_hline(yintercept = threshold$hap_hom1_q1, linetype = 2, colour = "grey48") +
@@ -43,11 +43,9 @@ p1 <- pool200 %>%
   facet_grid(nitrate + rep ~ chrom, scales = "free_x", space = "free_x") +
   scale_x_continuous(breaks = seq(0, 30, 10)) +
   labs(x = "Mb", y = "Heterozygosity", colour = "selection: ") +
-  theme(legend.position = "top")
+  theme(legend.position = "top") +
+  scale_color_manual(values = RColorBrewer::brewer.pal(3, name = "Dark2")[c(1, 3)])
 
 # save graph
-pdf("./figures/Fig05.pdf", width = 7.5, height = 8.5)
 p1
-dev.off()
-
-
+ggsave("./figures/S07Fig.pdf", width = 7.5, height = 8.5)

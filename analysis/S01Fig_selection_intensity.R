@@ -19,7 +19,7 @@ scale_fill_continuous <- scale_fill_viridis_c
 scale_fill_discrete <- function(palette = "Dark2", ...) scale_fill_brewer(palette = palette, ...)
 
 # Read data
-source("./scripts/R/data_processing/read_phenotypes.R")
+phen_sum <- readRDS("./data/processed/phenotypes/phenotypes_summarised.rds")
 
 
 #### Figure ####
@@ -56,6 +56,5 @@ p3 <- phen_sum %>%
   labs(x = "Generation", y = "Selection intensity", title = "D") +
   theme(legend.position = "none")
 
-pdf("./figures/FigS01.pdf", width = 7.5, height = 5)
 p1 / (p2 + p3 + plot_layout(widths = c(1/4, 3/4)))
-dev.off()
+ggsave("./figures/S01Fig.pdf", width = 7.5, height = 5)

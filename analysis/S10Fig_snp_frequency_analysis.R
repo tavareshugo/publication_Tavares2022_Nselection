@@ -1,3 +1,7 @@
+#
+# Fig S10
+#
+
 library(tidyverse)
 library(valr)
 library(patchwork)
@@ -159,6 +163,7 @@ pool200 %>%
   labs(x = "Mb", y = "Heterozygosity", colour = "selection: ") +
   theme(legend.position = "top")
 
+
 # Paper Figure -----
 
 # genome scan
@@ -205,4 +210,4 @@ chr3_peak <- pool200 %>%
 p1 + chr2_peak + chr3_peak +
   plot_layout(ncol = 1, heights = c(2.5, 1, 1)) +
   plot_annotation(tag_levels = "A")
-ggsave("./figures/revision2023_FigSX.pdf", width = 7.5, height = 10)
+ggsave("./figures/S10Fig.pdf", width = 7.5, height = 10)

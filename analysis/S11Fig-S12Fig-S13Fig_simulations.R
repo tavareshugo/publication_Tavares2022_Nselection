@@ -1,6 +1,11 @@
+#
+# Fig S11, S12 and S13
+#
+
 library(tidyverse)
 library(patchwork)
 library(vroom)
+library(ggridges)
 theme_set(theme_classic() + theme(text = element_text(size = 16)))
 
 
@@ -28,15 +33,16 @@ selected_loci <- het_sum %>%
 
 # individual replicates (only reading 10 of them due to memory constraints)
 het <- vroom(pipe('cat data/processed/simulations/het_all_loci.csv | grep "seed8[0-9]"'),
-             col_names = c("selected_nloci", "selected_effect",
+             col_names = c("id", 
+                           "selected_nloci", "selected_effect",
                            "selected_nalleles", "seed", "selection",
                            "gen", "chrom", "pos", "selected",
                            "het", "het2", "het3", "het4", "het5",
                            "het6", "het7", "het8", "het_quantile"))
 
 # quick plotting filters
-filter_nloci <- "20"
-filter_nalleles <- 2
+filter_nloci <- "35"
+filter_nalleles <- 1
 filter_effect <- 0.2
 
 
@@ -233,8 +239,8 @@ p1 /
 # Paper figures ------------------------------------------------------------
 
 # heritability
-pdf("./figures/FigS09.pdf", width = 5, height = 4)
 trait_h2 %>%
+  filter(selected_effect %in% c(0.03, 0.05, 0.1, 0.2, 0.3, 0.5, 1)) %>%
   mutate(selected_nloci = factor(as.numeric(selected_nloci))) %>%
   drop_na(selected_nloci) %>%
   ggplot(aes(factor(selected_nloci), estimate)) +
@@ -246,7 +252,24 @@ trait_h2 %>%
   labs(x = "No. trait loci",
        y = "Realised heritability",
        fill = "Allele\nEffect")
-dev.off()
+  
+trait_h2 %>%
+  filter(selected_effect %in% c(0.03, 0.05, 0.1, 0.2, 0.3, 0.5, 1),
+         selected_nalleles %in% c(1, 4),
+         selected_nloci %in% c(1, 5, 10, 30, 60)) %>%
+  mutate(selected_nloci = factor(as.numeric(selected_nloci))) %>%
+  drop_na(selected_nloci) %>%
+  ggplot(aes(estimate, factor(selected_effect))) +
+  annotate(geom = "rect", alpha = 0.3,
+           ymin = -Inf, ymax = Inf, xmin = 0.05, xmax = 0.2) +
+  geom_density_ridges(aes(fill = selected_nloci), 
+                      alpha = 0.9) + 
+  facet_grid(paste0(selected_nalleles, "/19") ~ .) +
+  scale_fill_viridis_d(option = "inferno") +
+  labs(x = "Realised Heritability",
+       y = "Allelic Effect",
+       fill = "No. Adv\nAlleles")
+ggsave("./figures/S11Fig.pdf", width = 5, height = 4)
 
 # function to make plot
 makePlot <- function(filter_nloci, filter_nalleles, filter_effect){
@@ -265,7 +288,7 @@ makePlot <- function(filter_nloci, filter_nalleles, filter_effect){
     scale_fill_brewer(palette = "Dark2") +
     labs(x = "Position", y = "He", labs = "Selection",
          subtitle = paste0("Trait loci = ", filter_nloci,
-                           "; Adv. alleles = ", filter_nalleles,
+                           "; Start Freq = ", filter_nalleles, "/19",
                            "; Allele effect = ", filter_effect)) +
     theme(axis.text.x = element_blank())
 
@@ -309,58 +332,24 @@ makePlot <- function(filter_nloci, filter_nalleles, filter_effect){
   (p1 / (p2 | p3))
 }
 
-# single locus
-makePlot(filter_nloci = 1,
-         filter_nalleles = 1,
-         filter_effect = 0.7)
-
-pdf("figures/FigS10.pdf", width = 7.5, height = 10)
+# average across simulations
 wrap_plots(
-  makePlot(filter_nloci = 3,
-           filter_nalleles = 1,
-           filter_effect = 0.5) + plot_layout(tag_level = "new"),
   makePlot(filter_nloci = 10,
            filter_nalleles = 1,
            filter_effect = 0.3) + plot_layout(tag_level = "new"),
+  makePlot(filter_nloci = 30,
+           filter_nalleles = 1,
+           filter_effect = 0.2) + plot_layout(tag_level = "new"),
   ncol = 1
 ) +
   plot_annotation(tag_levels = c("A", "i"))
-dev.off()
+ggsave("figures/S12Fig.pdf", width = 7.5, height = 10)
 
-# multi-locus, multi-allele
-pdf("figures/FigS11.pdf", width = 7.5, height = 10)
-filter_nloci <- "20"
-filter_nalleles <- 2
+# individual simulation example
+filter_nloci <- "30"
+filter_nalleles <- 1
 filter_effect <- 0.2
 het %>%
-  filter(selection != "stabilising") %>%
-  filter(selected_nloci == filter_nloci &
-           selected_nalleles == filter_nalleles &
-           selected_effect == filter_effect) %>%
-  mutate(selection = factor(selection, levels = c("random", "directional", "stabilising"))) %>%
-  left_join(trait_h2) %>%
-  group_by(seed, selection, chrom) %>%
-  # arrange(pos) %>%
-  mutate(avg = slider::slide_index_dbl(het, pos, ~ mean(.x), .before = 2, .after = 2)) %>%
-  ungroup() %>%
-  ggplot(aes(pos, avg)) +
-  geom_line(aes(colour = selection), size = 1) +
-  geom_point(data = selected_loci %>% filter(selected_nloci == filter_nloci),
-             aes(y = 0), colour = "grey", fill = "grey", size = 2, shape = 24) +
-  facet_grid(str_replace(seed, "seed", "sim") + round(estimate, 2) ~ chrom, scales = "free_x", space = "free_x") +
-  scale_colour_brewer(palette = "Dark2") +
-  labs(x = "Position", y = "Expected heterozygosity", labs = "Selection",
-       title = paste0("Trait loci = ", filter_nloci, "; Adv. alleles = ", filter_nalleles, "; Allele effect = ", filter_effect)) +
-  theme(axis.text.x = element_blank()) +
-  scale_y_continuous(breaks = c(0, 0.5, 1))
-dev.off()
-
-
-pdf("figures/FigS11.pdf", width = 7.5, height = 10)
-filter_nloci <- "20"
-filter_nalleles <- 2
-filter_effect <- 0.2
-p <- het %>%
   filter(selection != "stabilising") %>%
   filter(selected_nloci == filter_nloci &
            selected_nalleles == filter_nalleles &
@@ -381,18 +370,41 @@ p <- het %>%
   labs(x = "Position", y = "He", labs = "Selection") +
   theme(axis.text.x = element_blank()) +
   scale_y_continuous(breaks = c(0, 0.5, 1))
-wrap_plots(
- makePlot(filter_nloci, filter_nalleles, filter_effect) +
-   plot_layout(tag_level = "new"),
- p,
- ncol = 1
-) +
-  plot_annotation(tag_levels = c("A", "i"))
-dev.off()
+ggsave("figures/S13Fig.pdf", width = 7.5, height = 6)
 
 
 
 #### playground ####
+
+filter_nloci <- "30"
+filter_nalleles <- 1
+filter_effect <- 0.2
+het %>%
+  filter(selection != "stabilising") %>%
+  filter(selected_nloci == filter_nloci &
+           selected_nalleles == filter_nalleles &
+           selected_effect == filter_effect) %>%
+  # filter(seed %in% paste0("seed", 80:85)) %>%
+  mutate(selection = factor(selection, levels = c("random", "directional", "stabilising"))) %>% 
+  left_join(trait_h2) %>%
+  filter(estimate > 0.05) |> 
+  group_by(seed, selection, chrom) %>%
+  # arrange(pos) %>%
+  mutate(avg = slider::slide_index_dbl(het, pos, ~ mean(.x), .before = 2, .after = 2)) %>%
+  ungroup() %>%
+  ggplot(aes(pos, avg)) +
+  geom_line(aes(colour = selection), size = 1) +
+  geom_point(data = selected_loci %>% filter(selected_nloci == filter_nloci),
+             aes(y = 0), fill = "black", size = 2, shape = 24) +
+  facet_grid(str_replace(seed, "seed", "sim") + round(estimate, 2) ~ chrom, scales = "free_x", space = "free_x") +
+  scale_colour_brewer(palette = "Dark2") +
+  labs(x = "Position", y = "He", labs = "Selection") +
+  theme(axis.text.x = element_blank()) +
+  scale_y_continuous(breaks = c(0, 0.5, 1))
+
+makePlot(filter_nloci, filter_nalleles, filter_effect) +
+   plot_layout(tag_level = "new")
+
 
 het_sel %>%
   filter(selected_nloci == filter_nloci &
@@ -406,6 +418,21 @@ het_sel %>%
   geom_hline(yintercept = 0.05) +
   scale_colour_brewer(palette = "Dark2") +
   theme(legend.position = "none")
+
+# heritability broken down
+trait_h2 %>%
+  mutate(selected_nloci = factor(as.numeric(selected_nloci))) %>%
+  drop_na(selected_nloci) %>%
+  filter(selected_nalleles == 2) |> 
+  ggplot(aes(factor(selected_effect), estimate)) +
+  annotate(geom = "rect", alpha = 0.3,
+           xmin = -Inf, xmax = Inf, ymin = 0.05, ymax = 0.2) +
+  geom_violin(aes(fill = factor(selected_effect)), scale = "width") +
+  facet_wrap( ~ selected_nloci) +
+  scale_fill_viridis_d(option = "inferno") +
+  labs(x = "No. trait loci",
+       y = "Realised heritability",
+       fill = "Allele\nEffect")
 
 het_sel %>%
   filter(selection != "stabilising") %>%

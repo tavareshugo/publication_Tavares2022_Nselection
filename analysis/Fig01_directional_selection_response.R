@@ -62,7 +62,7 @@ p1 <- phen_sum %>%
               colour = NA) +
   facet_grid(nitrate_grown ~ replicate) +
   scale_x_continuous(breaks = seq(0, 10, 2)) +
-  labs(x = "Generation", y = "Median branches", tag = "A") +
+  labs(x = "Generation", y = "Median branches", tag = "B") +
   scale_color_brewer(palette = "Dark2") #+
   #theme(legend.position = c(0, 0.5), legend.justification = c(0, 0.5))
 
@@ -77,7 +77,7 @@ p2 <- phen_response %>%
   labs(x = "Cumulative selection differential",
        y = "Response\n(selected - control)",
        colour = "Replicate",
-       tag = "B") +
+       tag = "C") +
   theme(legend.position = "none") +
   scale_color_viridis_d()
 
@@ -87,11 +87,10 @@ p3 <- resamples %>%
   geom_violin(aes(fill = replicate), scale = "width") +
   facet_grid(nitrate ~ .) +
   scale_y_continuous(limits = c(0, 0.22), breaks = c(0, 0.1, 0.2)) +
-  labs(y = "realised heritability", x = "replicate", tag = "C") +
+  labs(y = "realised heritability", x = "replicate", tag = "D") +
   theme(legend.position = "none") +
   scale_fill_viridis_d() +
   coord_flip()
 
-pdf("./figures/Fig01.pdf", width = 7.5, height = 5)
 p1 / (p2 + p3 + plot_layout(widths = c(3/4, 1/4)))
-dev.off()
+ggsave("./figures/Fig01.pdf", width = 7.5, height = 5)

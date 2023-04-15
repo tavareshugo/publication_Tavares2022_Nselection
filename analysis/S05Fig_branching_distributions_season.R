@@ -1,5 +1,5 @@
 #
-# Fig S04
+# Fig S05
 #
 
 #### Setup ####
@@ -20,6 +20,7 @@ scale_fill_discrete <- function(palette = "Dark2", ...) scale_fill_brewer(palett
 
 # Read data
 source("./scripts/R/data_processing/read_phenotypes.R")
+phen_filter <- readRDS("./data/processed/phenotypes/phenotypes_individual.rds")
 
 
 
@@ -42,7 +43,6 @@ p1 <- phen_filter %>%
             hjust = 0, size = 3) +
   labs(x = "Branch number", tag = "A") +
   theme(legend.position = "none")
-theme(legend.position = "none")
 
 
 # Distribution of shoot branching grouped by sowing month
@@ -59,7 +59,5 @@ p2 <- phen_filter %>%
   labs(y = "Sowing month", x = "Number of branches", tag = "B")
 
 
-pdf("./figures/FigS04.pdf", width = 7.5, height = 6)
 p1 + p2 + plot_layout(ncol = 1, heights = c(1, 2))
-dev.off()
-
+ggsave("./figures/S05Fig.pdf", width = 7.5, height = 6)
