@@ -4,3 +4,4 @@ logs
 .Rhistory
 .Rproj.user
 figures
+.spyproject/**
