@@ -109,7 +109,7 @@ p2.2 <- sweep_freqs %>%
 
 # LN - B peaks
 p2.3 <- sweep_freqs %>%
-  filter(peak_id %in% c(1, 12) & sample == "LN-directional-B") %>%
+  filter(peak_id %in% c(1, 11) & sample == "LN-directional-B") %>%
   mutate(accession = str_to_sentence(accession)) %>%
   ggplot(aes(accession, frequency)) +
   geom_col() +
